@@ -1,3 +1,5 @@
+"use client";
+
 const places = [
     { name: "Simpang Lima", lat: -6.989997, lng: 110.422279, category: "Wisata", img: "/simpang-lima.jpg" },
     { name: "Lumpia Gang Lombok", lat: -6.974390, lng: 110.427954, category: "Kuliner", img: "/lumpia.jpg" },
