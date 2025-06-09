@@ -2,59 +2,134 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * Merge class names with Tailwind CSS classes
+ * Combines class names with Tailwind CSS classes
  */
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * Formats milliseconds into a time string (MM:SS)
+ * Formats milliseconds into a time string (mm:ss)
  */
 export function formatDuration(ms) {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
+  if (!ms || isNaN(ms)) return "0:00";
+  
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Formats a number with commas for thousands
+ */
+export function formatNumber(num) {
+  if (!num || isNaN(num)) return "0";
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/**
+ * Debounces a function
+ */
+export function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+/**
+ * Truncates text to a specified length
+ */
+export function truncateText(text, maxLength) {
+  if (!text) return "";
+  if (text.length <= maxLength) return text;
+  return `${text.substring(0, maxLength)}...`;
+}
+
+/**
+ * Generates a random string
+ */
+export function generateRandomString(length) {
+  let text = '';
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  
+  for (let i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  
+  return text;
+}
+
+/**
+ * Extracts the color from an image
+ */
+export async function getColorFromImage(imageUrl) {
+  // This is a placeholder - in a real app, you would use a library like Vibrant.js
+  // to extract colors from an image
+  return {
+    vibrant: "#8a7cff",
+    darkVibrant: "#4f46e5",
+    lightVibrant: "#c4b5fd",
+    muted: "#6b7280",
+    darkMuted: "#374151",
+    lightMuted: "#9ca3af"
+  };
 }
 
 /**
  * Formats a date string
  */
 export function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-/**
- * Formats a number of followers
- */
-export function formatFollowers(count) {
-  if (!count) return '0';
+  if (!dateString) return "";
   
-  if (count >= 1000000) {
-    return `${(count / 1000000).toFixed(1)}M`;
-  } else if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}K`;
-  }
-  return count.toLocaleString();
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(date);
 }
 
 /**
- * Returns the time of day (morning, afternoon, evening)
+ * Creates a URL with query parameters
  */
-export function getTimeOfDay() {
+export function createUrlWithParams(baseUrl, params) {
+  const url = new URL(baseUrl);
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null) {
+      url.searchParams.append(key, params[key]);
+    }
+  });
+  return url.toString();
+}
+
+/**
+ * Shuffles an array
+ */
+export function shuffleArray(array) {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
+/**
+ * Gets the greeting based on time of day
+ */
+export function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "morning";
   if (hour < 18) return "afternoon";
   return "evening";
-}
-
-/**
- * Truncates text to a specified length
- */
-export function truncateText(text, maxLength = 100) {
-  if (!text || text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '...';
 }
 
 /**
@@ -74,21 +149,6 @@ export function getRandomColor() {
     '#1e3264', '#503750', '#777777', '#af2896'
   ];
   return getRandomItem(colors);
-}
-
-/**
- * Debounce function for search inputs
- */
-export function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
 }
 
 /**

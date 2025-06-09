@@ -1,14 +1,16 @@
 {
-  "version": 2,
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
+  "buildCommand": "next build",
+  "devCommand": "next dev",
   "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "env": {
-    "NEXTAUTH_URL": "https://maps-semarang.vercel.app"
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
   },
-  "github": {
-    "silent": true
+  "env": {
+    "NEXTAUTH_URL": "https://maps-semarang.vercel.app",
+    "NEXTAUTH_SECRET": "your-nextauth-secret"
   }
 } 

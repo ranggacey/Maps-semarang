@@ -1,243 +1,223 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Play, Pause, Clock } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { getSavedTracks } from "@/lib/spotify/api";
-
-// Mock data for development mode
-const mockSavedTracks = {
-  items: Array(20).fill(null).map((_, i) => ({
-    added_at: new Date(Date.now() - i * 86400000).toISOString(),
-    track: {
-      id: `mock-track-${i}`,
-      name: `Liked Song ${i + 1}`,
-      duration_ms: 180000 + i * 10000,
-      album: {
-        name: `Album ${i + 1}`,
-        images: [{ url: `https://picsum.photos/seed/${i + 400}/300/300` }],
-        id: `mock-album-${i}`
-      },
-      artists: [
-        { id: `mock-artist-${i}`, name: `Artist ${i + 1}` }
-      ]
-    }
-  }))
-};
+import { Clock, Search, MoreHorizontal, Play } from "lucide-react";
 
 export default function LikedSongsPage() {
-  const router = useRouter();
   const { data: session } = useSession();
-  const [savedTracks, setSavedTracks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playingTrackId, setPlayingTrackId] = useState(null);
-  const [isDemoMode, setIsDemoMode] = useState(false);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!session?.user) return;
-      
-      setLoading(true);
-      
-      // Check if we're using the demo account
-      if (session.user.id === "demo-user-id") {
-        setIsDemoMode(true);
-        setSavedTracks(mockSavedTracks.items || []);
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        const data = await getSavedTracks(session.user.accessToken);
-        setSavedTracks(data.items || []);
-      } catch (error) {
-        console.error("Error fetching saved tracks:", error);
-        // Fall back to mock data if API calls fail
-        setSavedTracks(mockSavedTracks.items || []);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [session]);
-
-  const togglePlay = (trackId) => {
-    if (playingTrackId === trackId) {
-      setIsPlaying(!isPlaying);
-    } else {
-      setPlayingTrackId(trackId);
-      setIsPlaying(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  
+  // Mock liked songs data
+  const likedSongs = [
+    {
+      id: "1",
+      title: "Blinding Lights",
+      artist: "The Weeknd",
+      album: "After Hours",
+      duration: "3:20",
+      addedAt: "2023-09-15",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "2",
+      title: "Save Your Tears",
+      artist: "The Weeknd",
+      album: "After Hours",
+      duration: "3:35",
+      addedAt: "2023-09-14",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "3",
+      title: "Starboy",
+      artist: "The Weeknd, Daft Punk",
+      album: "Starboy",
+      duration: "3:50",
+      addedAt: "2023-09-10",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "4",
+      title: "Die For You",
+      artist: "The Weeknd",
+      album: "Starboy",
+      duration: "4:20",
+      addedAt: "2023-09-05",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "5",
+      title: "Flowers",
+      artist: "Miley Cyrus",
+      album: "Endless Summer Vacation",
+      duration: "3:21",
+      addedAt: "2023-08-28",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "6",
+      title: "As It Was",
+      artist: "Harry Styles",
+      album: "Harry's House",
+      duration: "2:47",
+      addedAt: "2023-08-20",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "7",
+      title: "Unholy",
+      artist: "Sam Smith, Kim Petras",
+      album: "Gloria",
+      duration: "2:36",
+      addedAt: "2023-08-15",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "8",
+      title: "Anti-Hero",
+      artist: "Taylor Swift",
+      album: "Midnights",
+      duration: "3:21",
+      addedAt: "2023-08-10",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "9",
+      title: "Kill Bill",
+      artist: "SZA",
+      album: "SOS",
+      duration: "2:33",
+      addedAt: "2023-08-05",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
+    },
+    {
+      id: "10",
+      title: "Creepin'",
+      artist: "Metro Boomin, The Weeknd, 21 Savage",
+      album: "HEROES & VILLAINS",
+      duration: "3:41",
+      addedAt: "2023-07-28",
+      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
     }
-    // In a real app, this would interact with the Spotify Web Playback SDK
-  };
+  ];
 
-  const formatDuration = (ms) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--primary)]"></div>
-      </div>
-    );
-  }
+  // Filter songs based on search query
+  const filteredSongs = likedSongs.filter(song => 
+    song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    song.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    song.album.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="pb-24">
+    <div className="pb-8">
       {/* Header */}
-      <div className="relative h-[30vh] min-h-[250px] w-full">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#5038a0] to-[var(--background)] flex items-end">
-          <div className="p-8 flex items-end gap-6">
-            <div className="h-52 w-52 shadow-lg bg-gradient-to-br from-[#450af5] to-[#c4efd9] flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-24 w-24 text-white" fill="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-bold uppercase">Playlist</p>
-              <h1 className="text-5xl font-bold mt-2 mb-4">Liked Songs</h1>
-              <p className="text-[var(--secondary)]">
-                {savedTracks.length} songs
-              </p>
+      <div className="relative h-80 bg-gradient-to-b from-[var(--primary)] to-[var(--background)] mb-6">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--background)] opacity-90"></div>
+        <div className="absolute bottom-0 left-0 p-8 flex items-end">
+          <div className="mr-6">
+            <img 
+              src="https://misc.scdn.co/liked-songs/liked-songs-640.png" 
+              alt="Liked Songs" 
+              className="w-52 h-52 shadow-2xl"
+            />
+          </div>
+          <div>
+            <p className="uppercase text-sm font-bold mb-2">Playlist</p>
+            <h1 className="text-7xl font-extrabold mb-6">Liked Songs</h1>
+            <div className="flex items-center text-sm">
+              <span className="font-semibold">{session?.user?.name || "User"}</span>
+              <span className="mx-1">•</span>
+              <span>{filteredSongs.length} songs</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-4 p-8 pt-4">
-        <Button
-          onClick={() => {
-            if (savedTracks.length > 0) {
-              togglePlay(savedTracks[0].track.id);
-            }
-          }}
-          className="flex items-center justify-center rounded-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] p-3"
-          size="icon"
-        >
-          {isPlaying ? (
-            <Pause className="h-6 w-6 text-black" fill="black" />
-          ) : (
-            <Play className="h-6 w-6 text-black" fill="black" />
-          )}
-        </Button>
+      {/* Controls */}
+      <div className="flex items-center gap-6 mb-6">
+        <button className="w-14 h-14 flex items-center justify-center bg-[var(--primary)] rounded-full hover:scale-105 transition-transform shadow-lg">
+          <Play className="h-7 w-7 text-black ml-1" fill="currentColor" />
+        </button>
+        
+        {showSearch ? (
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search in your liked songs"
+              className="w-64 pl-10 pr-4 py-2 bg-[var(--card)] border border-[var(--accent)] rounded-full text-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              autoFocus
+              onBlur={() => searchQuery === "" && setShowSearch(false)}
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
+          </div>
+        ) : (
+          <button 
+            onClick={() => setShowSearch(true)}
+            className="p-2 hover:bg-[var(--hover-light)] rounded-full transition-colors"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
-      {/* Tracks Table */}
-      {savedTracks.length > 0 ? (
-        <div className="px-8">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[var(--accent)] text-[var(--secondary)] text-sm">
-                <th className="pb-2 text-center w-12">#</th>
-                <th className="pb-2 text-left">Title</th>
-                <th className="pb-2 text-left">Album</th>
-                <th className="pb-2 text-left">Date added</th>
-                <th className="pb-2 text-right pr-8">
-                  <Clock className="h-4 w-4 inline" />
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {savedTracks.map((item, index) => (
-                <tr 
-                  key={item.track.id}
-                  className="hover:bg-[var(--card-hover)] group transition cursor-pointer"
-                  onClick={() => router.push(`/dashboard/track/${item.track.id}`)}
-                >
-                  <td className="py-3 text-center">
-                    <div className="relative flex items-center justify-center h-6 w-6">
-                      <span className="group-hover:hidden text-[var(--secondary)]">{index + 1}</span>
-                      <button 
-                        className="hidden group-hover:flex items-center justify-center"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePlay(item.track.id);
-                        }}
-                      >
-                        {playingTrackId === item.track.id && isPlaying ? (
-                          <Pause className="h-4 w-4" />
-                        ) : (
-                          <Play className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 min-w-[40px]">
-                        {item.track.album?.images?.[0]?.url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img 
-                            src={item.track.album.images[0].url} 
-                            alt={item.track.name}
-                            className="object-cover h-full w-full"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full w-full bg-[var(--accent)]"></div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{item.track.name}</p>
-                        <div className="text-sm text-[var(--secondary)]">
-                          {item.track.artists?.map((artist, idx) => (
-                            <span key={artist.id}>
-                              <span 
-                                className="hover:underline cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  router.push(`/dashboard/artist/${artist.id}`);
-                                }}
-                              >
-                                {artist.name}
-                              </span>
-                              {idx < item.track.artists.length - 1 && ", "}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <p 
-                      className="text-[var(--secondary)] hover:underline cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/dashboard/album/${item.track.album.id}`);
-                      }}
-                    >
-                      {item.track.album.name}
-                    </p>
-                  </td>
-                  <td className="py-3 text-[var(--secondary)]">
-                    {formatDate(item.added_at)}
-                  </td>
-                  <td className="py-3 text-right pr-8 text-[var(--secondary)]">
-                    {formatDuration(item.track.duration_ms)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Songs Table */}
+      <div className="bg-[var(--card)] bg-opacity-30 rounded-lg overflow-hidden">
+        {/* Table Header */}
+        <div className="grid grid-cols-[16px_4fr_3fr_2fr_1fr] gap-4 px-4 py-2 border-b border-[var(--accent)] text-sm text-[var(--text-muted)]">
+          <div className="text-center">#</div>
+          <div>Title</div>
+          <div>Album</div>
+          <div>Date Added</div>
+          <div className="flex justify-end">
+            <Clock className="h-5 w-5" />
+          </div>
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-40 px-8">
-          <h3 className="text-xl font-bold mb-2">Songs you like will appear here</h3>
-          <p className="text-[var(--secondary)]">Save songs by tapping the heart icon.</p>
-        </div>
-      )}
+
+        {/* Table Body */}
+        {filteredSongs.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-xl font-semibold mb-2">No songs found</p>
+            <p className="text-[var(--text-muted)]">Try a different search term</p>
+          </div>
+        ) : (
+          <div>
+            {filteredSongs.map((song, index) => (
+              <div 
+                key={song.id}
+                className="grid grid-cols-[16px_4fr_3fr_2fr_1fr] gap-4 px-4 py-2 hover:bg-[var(--card-hover)] transition-colors items-center group"
+              >
+                <div className="text-center text-[var(--text-muted)] group-hover:hidden">{index + 1}</div>
+                <div className="text-center text-white hidden group-hover:block">
+                  <Play className="h-4 w-4" fill="currentColor" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={song.image} 
+                    alt={song.title}
+                    className="w-10 h-10"
+                  />
+                  <div>
+                    <p className="font-medium truncate">{song.title}</p>
+                    <p className="text-sm text-[var(--text-muted)] truncate">{song.artist}</p>
+                  </div>
+                </div>
+                <div className="truncate text-[var(--text-muted)]">{song.album}</div>
+                <div className="text-[var(--text-muted)] text-sm">{song.addedAt}</div>
+                <div className="flex justify-end items-center gap-4">
+                  <button className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </button>
+                  <span className="text-[var(--text-muted)]">{song.duration}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

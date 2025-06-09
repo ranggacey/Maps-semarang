@@ -1,0 +1,110 @@
+.sidebar {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  width: 280px;
+  background-color: var(--sidebar-bg);
+  padding: 8px;
+  overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: flex;
+  }
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.logoIcon {
+  background-color: var(--primary);
+  border-radius: 9999px;
+  padding: 6px;
+}
+
+.logoText {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.section {
+  margin-top: 8px;
+  padding: 8px 16px;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  padding: 0 16px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.navItem:hover {
+  color: white;
+}
+
+.navItemActive {
+  color: white;
+  background-color: var(--hover-light);
+}
+
+.iconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  width: 28px;
+  background-image: var(--gradient-purple-blue);
+  border-radius: 6px;
+}
+
+.userSection {
+  margin-top: auto;
+  padding: 16px;
+}
+
+.userContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--card);
+  border-radius: 9999px;
+  padding: 8px;
+}
+
+.userAvatar {
+  height: 32px;
+  width: 32px;
+  border-radius: 9999px;
+  background-color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.userName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+} 

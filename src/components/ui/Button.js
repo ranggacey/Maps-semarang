@@ -10,34 +10,38 @@ export const Button = forwardRef(({
   type = "button",
   variant = "default",
   size = "default",
+  onClick,
   ...props
 }, ref) => {
-  const variants = {
+  const variantStyles = {
     default: "bg-[var(--primary)] text-black hover:bg-[var(--primary-hover)]",
-    destructive: "bg-red-500 text-white hover:bg-red-600",
-    outline: "border border-[var(--accent)] bg-transparent hover:bg-[var(--card)]",
-    ghost: "bg-transparent hover:bg-[var(--card)]",
-    link: "bg-transparent underline-offset-4 hover:underline"
+    outline: "border border-[var(--accent)] hover:bg-[var(--hover-light)] text-white",
+    secondary: "bg-[var(--card)] hover:bg-[var(--card-hover)] text-white",
+    ghost: "hover:bg-[var(--hover-light)] text-white",
+    link: "text-[var(--primary)] hover:text-[var(--primary-hover)] underline-offset-4 hover:underline p-0",
+    destructive: "bg-red-600 hover:bg-red-700 text-white",
+    success: "bg-emerald-600 hover:bg-emerald-700 text-white",
   };
 
-  const sizes = {
-    default: "h-10 px-4 py-2 rounded-full",
-    sm: "h-8 px-3 rounded-full text-sm",
-    lg: "h-12 px-6 rounded-full text-lg",
-    icon: "h-10 w-10 rounded-full p-2"
+  const sizeStyles = {
+    default: "h-10 px-4 py-2 rounded-lg",
+    sm: "h-8 px-3 py-1 text-sm rounded-md",
+    lg: "h-12 px-6 py-3 text-lg rounded-lg",
+    icon: "h-10 w-10 rounded-full p-2",
   };
 
   return (
     <button
       type={type}
       className={cn(
-        "font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)] disabled:pointer-events-none disabled:opacity-50",
-        variants[variant],
-        sizes[size],
+        "font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 focus:ring-offset-[var(--background)] disabled:pointer-events-none disabled:opacity-50",
+        variantStyles[variant],
+        sizeStyles[size],
         className
       )}
       disabled={disabled}
       ref={ref}
+      onClick={onClick}
       {...props}
     >
       {children}
