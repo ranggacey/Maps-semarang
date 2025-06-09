@@ -73,6 +73,8 @@ const handler = NextAuth({
     signIn: "/",
   },
   debug: process.env.NODE_ENV === "development",
+  // Add site URL for production
+  ...(process.env.NEXTAUTH_URL ? { url: process.env.NEXTAUTH_URL } : {}),
 });
 
 export { handler as GET, handler as POST }; 
