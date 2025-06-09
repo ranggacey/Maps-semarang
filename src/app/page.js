@@ -1,139 +1,109 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import "leaflet-routing-machine";
-import places from "@/data/places";
-import { Search, X } from "lucide-react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
+import { Button } from "@/components/ui/Button";
+import { motion } from "framer-motion";
 
-export default function Home() {
-  const [selectedCategory, setSelectedCategory] = useState("Semua");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [map, setMap] = useState(null);
-  const [routingControl, setRoutingControl] = useState(null);
-  const searchInputRef = useRef(null);
-  const searchContainerRef = useRef(null);
+export default function LoginPage() {
+  const router = useRouter();
+  const { status } = useSession();
 
   useEffect(() => {
-    const newMap = L.map("map").setView([-6.9667, 110.4167], 13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(newMap);
-    setMap(newMap);
-    return () => newMap.remove();
-  }, []);
-
-  function startNavigation(destination) {
-    if (!map) return;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const userLocation = [position.coords.latitude, position.coords.longitude];
-        if (routingControl) {
-          map.removeControl(routingControl);
-        }
-        const newRoutingControl = L.Routing.control({
-          waypoints: [L.latLng(...userLocation), L.latLng(...destination)],
-          routeWhileDragging: false,
-          createMarker: () => null,
-          lineOptions: { styles: [{ color: "red", weight: 6 }] },
-        }).addTo(map);
-        setRoutingControl(newRoutingControl);
-      },
-      (error) => alert("Gagal mendapatkan lokasi: " + error.message),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  }
-
-  function cancelRoute() {
-    if (routingControl && map) {
-      map.removeControl(routingControl);
-      setRoutingControl(null);
+    if (status === "authenticated") {
+      router.push("/dashboard");
     }
-  }
-
-  useEffect(() => {
-    if (!map) return;
-    const markers = [];
-    places.forEach((place) => {
-      if (
-        (selectedCategory === "Semua" || place.category === selectedCategory) &&
-        (searchTerm === "" || place.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      ) {
-        const icon = L.icon({
-          iconUrl: place.img,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20],
-          popupAnchor: [0, -20],
-        });
-        const popupContent = `
-          <div class="text-center">
-            <h2 class="text-lg font-bold">${place.name}</h2>
-            <span class="text-sm text-gray-500">${place.category}</span>
-            <img src="${place.img}" alt="${place.name}" class="rounded-lg mt-2 w-36 h-24 object-cover">
-            <button class="go-btn mt-2 px-3 py-1 border rounded-md bg-blue-500 text-white" data-lat="${place.lat}" data-lng="${place.lng}">Go</button>
-          </div>
-        `;
-        const marker = L.marker([place.lat, place.lng], { icon })
-          .addTo(map)
-          .bindPopup(popupContent);
-        markers.push(marker);
-      }
-    });
-
-    map.on("popupopen", (e) => {
-      const btn = e.popup._contentNode.querySelector(".go-btn");
-      if (btn) {
-        btn.addEventListener("click", () => {
-          const destLat = btn.getAttribute("data-lat");
-          const destLng = btn.getAttribute("data-lng");
-          startNavigation([parseFloat(destLat), parseFloat(destLng)]);
-        });
-      }
-    });
-
-    return () => markers.forEach((marker) => map.removeLayer(marker));
-  }, [map, selectedCategory, searchTerm]);
+  }, [status, router]);
 
   return (
-    <div className="flex flex-col items-center p-4">
-      <div className="w-full flex justify-between items-center py-3 px-4 bg-white shadow-md fixed top-0 left-0 right-0 z-50">
-        <h1 className="text-xl font-bold text-gray-800">Peta Wisata Semarang</h1>
-        <div ref={searchContainerRef} className="relative flex items-center space-x-2">
-          <Search className="w-6 h-6 text-gray-600 cursor-pointer" onClick={() => setSearchOpen(true)} />
-          {searchOpen && (
-            <div className="absolute top-0 right-0 bg-white shadow-lg rounded-lg p-2 flex items-center w-64">
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Cari tempat..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full p-2 border rounded-md text-black outline-none"
-              />
-              <X className="w-6 h-6 text-gray-600 cursor-pointer ml-2" onClick={() => setSearchOpen(false)} />
-            </div>
-          )}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="p-2 border rounded-md shadow-md text-lg bg-blue-200 text-black hover:bg-blue-300 transition"
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black">
+      <div className="w-full max-w-md p-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center justify-center mb-8"
+        >
+          <div className="flex items-center justify-center mb-4">
+            <svg viewBox="0 0 24 24" className="h-16 w-16 text-[var(--primary)]" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.85 14.35c-.2 0-.35-.1-.5-.2-1.35-.85-3.05-1.3-4.85-1.3-1.8 0-3.5.45-4.85 1.3-.15.1-.3.2-.5.2-.4 0-.75-.35-.75-.75 0-.35.2-.65.45-.75 1.65-1 3.6-1.5 5.65-1.5 2.05 0 4 .5 5.65 1.5.25.1.45.45.45.75 0 .4-.35.75-.75.75zm1.3-3.15c-.25 0-.45-.1-.6-.25-1.7-1.05-4.05-1.7-6.55-1.7s-4.85.65-6.55 1.7c-.15.15-.35.25-.6.25-.45 0-.85-.4-.85-.85 0-.35.2-.65.45-.8 2-1.25 4.75-2 7.55-2s5.55.75 7.55 2c.25.15.45.45.45.8 0 .45-.4.85-.85.85zm1.45-3.4c-.25 0-.45-.1-.65-.25-2.05-1.25-5.05-2-8.3-2-3.25 0-6.25.75-8.3 2-.2.15-.4.25-.65.25-.55 0-1-.45-1-1 0-.35.2-.7.45-.85 2.4-1.45 5.7-2.25 9.5-2.25 3.8 0 7.1.8 9.5 2.25.25.15.45.5.45.85 0 .55-.45 1-1 1z" />
+            </svg>
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-2">Spotitiy</h1>
+          <p className="text-[var(--secondary)] text-center">
+            Listen to millions of songs and podcasts on your device.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex flex-col gap-4"
+        >
+          <Button
+            onClick={() => signIn("spotify", { callbackUrl: "/dashboard" })}
+            className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-black font-bold py-3"
           >
-            <option value="Semua">Semua Kategori</option>
-            <option value="Wisata Alam">Wisata Alam</option>
-            <option value="Wisata">Wisata</option>
-            <option value="Kuliner">Kuliner</option>
-            <option value="Sejarah">Sejarah</option>
-          </select>
-        </div>
+            Continue with Spotify
+          </Button>
+          
+          <div className="relative flex items-center justify-center my-4">
+            <div className="absolute border-t border-[var(--accent)] w-full"></div>
+            <span className="relative bg-black px-4 text-sm text-[var(--secondary)]">or</span>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--secondary)]" htmlFor="email">
+                Email or username
+              </label>
+              <input
+                type="text"
+                id="email"
+                className="w-full p-3 rounded-md bg-[var(--card)] border border-[var(--accent)] text-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                placeholder="Email or username"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--secondary)]" htmlFor="password">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                className="w-full p-3 rounded-md bg-[var(--card)] border border-[var(--accent)] text-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                placeholder="Password"
+              />
+            </div>
+            
+            <Button
+              onClick={() => signIn("spotify", { callbackUrl: "/dashboard" })}
+              className="w-full bg-white hover:bg-gray-200 text-black font-bold py-3"
+            >
+              Log In
+            </Button>
+          </div>
+          
+          <div className="mt-4 text-center">
+            <a href="#" className="text-[var(--secondary)] hover:text-white underline text-sm">
+              Forgot your password?
+            </a>
+          </div>
+        </motion.div>
       </div>
-      {routingControl && (
-        <button onClick={cancelRoute} className="mt-20 px-4 py-2 bg-red-500 text-white rounded shadow mb-4">
-          Cancel Route
-        </button>
-      )}
-      <div id="map" className="w-full h-[80vh] rounded-lg shadow-lg mt-16 bg-blue-100/20" />
+      
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+        className="mt-8 text-center text-xs text-[var(--secondary)]"
+      >
+        <p>This is a demo application. Not affiliated with Spotify.</p>
+        <p className="mt-2">© {new Date().getFullYear()} Spotitiy Clone</p>
+      </motion.div>
     </div>
   );
 }

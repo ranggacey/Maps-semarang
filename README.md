@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Spotify Clone
+
+A modern Spotify clone built with Next.js 15, featuring authentication with the Spotify API and a sleek, responsive UI.
+
+## Features
+
+- **Authentication**: Sign in with your Spotify account
+- **Browse**: Explore featured playlists, new releases, and categories
+- **Search**: Find tracks, artists, albums, and playlists
+- **Detailed Views**: View detailed information about tracks, artists, albums, and playlists
+- **User Profile**: See your profile information and top artists
+- **Audio Features**: View audio analysis for tracks
+- **Responsive Design**: Works on desktop and mobile devices
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React, Tailwind CSS
+- **Authentication**: NextAuth.js with Spotify OAuth
+- **API Integration**: Spotify Web API
+- **UI Components**: Custom components with Tailwind CSS
+- **Icons**: Lucide React
+- **Animations**: Framer Motion
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js (v18 or newer)
+- Spotify Developer Account
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/spotify-clone.git
+   cd spotify-clone
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create a `.env.local` file in the root directory with the following variables:
+   ```
+   SPOTIFY_CLIENT_ID=your_spotify_client_id
+   SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+   NEXTAUTH_URL=http://localhost:3000
+   NEXTAUTH_SECRET=your_random_secret
+   ```
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Spotify API Setup
+
+1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/)
+2. Create a new application
+3. Add `http://localhost:3000/api/auth/callback/spotify` as a redirect URI
+4. Copy the Client ID and Client Secret to your `.env.local` file
+
+## Project Structure
+
+```
+/src
+  /app                   # Next.js app directory
+    /api                 # API routes
+    /dashboard           # Dashboard pages
+    /auth                # Authentication pages
+  /components            # React components
+    /ui                  # UI components
+    /layout              # Layout components
+  /lib                   # Utility functions
+    /spotify             # Spotify API functions
+  /styles                # Global styles
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## License
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Acknowledgments
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Spotify Web API](https://developer.spotify.com/documentation/web-api/)
+- [Next.js](https://nextjs.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [NextAuth.js](https://next-auth.js.org/)
+- [Lucide Icons](https://lucide.dev/)
