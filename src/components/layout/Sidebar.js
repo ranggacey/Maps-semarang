@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { 
   Home, Search, Library, PlusSquare, Heart, 
@@ -13,7 +13,12 @@ import styles from "./Sidebar.module.css";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
+
+  const handleNavigation = (href) => {
+    router.push(href);
+  };
 
   const routes = [
     {
@@ -104,19 +109,19 @@ export function Sidebar() {
   return (
     <div className={styles.sidebar}>
       <div className={styles.section}>
-        <Link href="/dashboard" className={styles.logo}>
+        <div onClick={() => handleNavigation("/dashboard")} className={styles.logo}>
           <div className={styles.logoIcon}>
             <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.85 14.35c-.2 0-.35-.1-.5-.2-1.35-.85-3.05-1.3-4.85-1.3-1.8 0-3.5.45-4.85 1.3-.15.1-.3.2-.5.2-.4 0-.75-.35-.75-.75 0-.35.2-.65.45-.75 1.65-1 3.6-1.5 5.65-1.5 2.05 0 4 .5 5.65 1.5.25.1.45.45.45.75 0 .4-.35.75-.75.75zm1.3-3.15c-.25 0-.45-.1-.6-.25-1.7-1.05-4.05-1.7-6.55-1.7s-4.85.65-6.55 1.7c-.15.15-.35.25-.6.25-.45 0-.85-.4-.85-.85 0-.35.2-.65.45-.8 2-1.25 4.75-2 7.55-2s5.55.75 7.55 2c.25.15.45.45.45.8 0 .45-.4.85-.85.85zm1.45-3.4c-.25 0-.45-.1-.65-.25-2.05-1.25-5.05-2-8.3-2-3.25 0-6.25.75-8.3 2-.2.15-.4.25-.65.25-.55 0-1-.45-1-1 0-.35.2-.7.45-.85 2.4-1.45 5.7-2.25 9.5-2.25 3.8 0 7.1.8 9.5 2.25.25.15.45.5.45.85 0 .55-.45 1-1 1z" />
             </svg>
           </div>
           <h1 className={styles.logoText}>Spotitiy</h1>
-        </Link>
+        </div>
         <div>
           {routes.map((item) => (
-            <Link
+            <div
               key={item.label}
-              href={item.href}
+              onClick={() => handleNavigation(item.href)}
               className={cn(
                 styles.navItem,
                 item.active && styles.navItemActive
@@ -124,7 +129,7 @@ export function Sidebar() {
             >
               <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
-            </Link>
+            </div>
           ))}
         </div>
       </div>
@@ -135,9 +140,9 @@ export function Sidebar() {
         </h2>
         <div>
           {yourMusic.map((item) => (
-            <Link
+            <div
               key={item.label}
-              href={item.href}
+              onClick={() => handleNavigation(item.href)}
               className={cn(
                 styles.navItem,
                 item.active && styles.navItemActive
@@ -151,7 +156,7 @@ export function Sidebar() {
                 <item.icon className="h-4 w-4 text-white" />
               </div>
               <span>{item.label}</span>
-            </Link>
+            </div>
           ))}
         </div>
       </div>
@@ -162,9 +167,9 @@ export function Sidebar() {
         </h2>
         <div>
           {discover.map((item) => (
-            <Link
+            <div
               key={item.label}
-              href={item.href}
+              onClick={() => handleNavigation(item.href)}
               className={cn(
                 styles.navItem,
                 item.active && styles.navItemActive
@@ -172,21 +177,27 @@ export function Sidebar() {
             >
               <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
-            </Link>
+            </div>
           ))}
         </div>
       </div>
 
       <div className={styles.section}>
-        <Link href="/dashboard/playlist/create" className={styles.navItem}>
+        <div 
+          onClick={() => handleNavigation("/dashboard/playlist/create")}
+          className={styles.navItem}
+        >
           <PlusSquare className="h-5 w-5" />
           <span>Create Playlist</span>
-        </Link>
+        </div>
       </div>
       
       {session?.user && (
         <div className={styles.userSection}>
-          <Link href="/dashboard/profile" className={styles.userContainer}>
+          <div 
+            onClick={() => handleNavigation("/dashboard/profile")}
+            className={styles.userContainer}
+          >
             <div className={styles.userAvatar}>
               {session.user.image ? (
                 <img 
@@ -204,7 +215,7 @@ export function Sidebar() {
               </p>
             </div>
             <Settings className="h-4 w-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
-          </Link>
+          </div>
         </div>
       )}
     </div>

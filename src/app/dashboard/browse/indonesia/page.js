@@ -1,260 +1,265 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Play } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { search, getCategories, getCategoryPlaylists } from "@/lib/spotify/api";
+import { Globe, Loader2, Music } from "lucide-react";
 
 export default function IndonesiaPage() {
   const { data: session } = useSession();
-  
-  // Mock data for Indonesian content
-  const featuredPlaylists = [
-    {
-      id: "1",
-      title: "Hot Hits Indonesia",
-      description: "Lagu hits terpanas di Indonesia saat ini. Cover: Mahalini",
-      image: "https://i.scdn.co/image/ab67706f00000002009a9b43696c653bfad7c278",
-      type: "playlist"
-    },
-    {
-      id: "2",
-      title: "Pop Indonesia",
-      description: "Hits pop Indonesia terkini. Cover: Lyodra",
-      image: "https://i.scdn.co/image/ab67706f00000002c0d5be6a5a0730efd6937d86",
-      type: "playlist"
-    },
-    {
-      id: "3",
-      title: "Kopikustik",
-      description: "Akustik Indonesia untuk menemani waktu ngopi kamu.",
-      image: "https://i.scdn.co/image/ab67706f00000002d1ef213808d3531dba5cd098",
-      type: "playlist"
-    },
-    {
-      id: "4",
-      title: "Indonesia Skena",
-      description: "Musik indie terbaik dari Indonesia.",
-      image: "https://i.scdn.co/image/ab67706f000000023f7f3ec0a6f1c111e1c44f9f",
-      type: "playlist"
-    }
-  ];
+  const router = useRouter();
+  const [indonesiaContent, setIndonesiaContent] = useState({
+    playlists: [],
+    artists: [],
+    tracks: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const topArtists = [
-    {
-      id: "1",
-      name: "Tulus",
-      image: "https://i.scdn.co/image/ab6761610000e5eb4a169c60b53e3a7fbb2a15f9",
-      type: "artist"
-    },
-    {
-      id: "2",
-      name: "Tiara Andini",
-      image: "https://i.scdn.co/image/ab6761610000e5eb7a487aeb39f1f4862da89cb0",
-      type: "artist"
-    },
-    {
-      id: "3",
-      name: "Lyodra",
-      image: "https://i.scdn.co/image/ab6761610000e5eb6e0261cc1d44a7388f0da2f4",
-      type: "artist"
-    },
-    {
-      id: "4",
-      name: "Mahalini",
-      image: "https://i.scdn.co/image/ab6761610000e5eb4f2d1c9c9f296f729da8f0aa",
-      type: "artist"
-    },
-    {
-      id: "5",
-      name: "Rizky Febian",
-      image: "https://i.scdn.co/image/ab6761610000e5eb8cba56962a2ed97929c16e7b",
-      type: "artist"
-    },
-    {
-      id: "6",
-      name: "Raisa",
-      image: "https://i.scdn.co/image/ab6761610000e5eb0c9d61f3264c472376a8fde7",
-      type: "artist"
-    }
-  ];
+  useEffect(() => {
+    const fetchIndonesiaContent = async () => {
+      if (!session?.accessToken) return;
 
-  const newReleases = [
-    {
-      id: "1",
-      title: "Monokrom",
-      artist: "Tulus",
-      image: "https://i.scdn.co/image/ab67616d0000b273c41f4e1133b0e6591a8f1d5a",
-      type: "album"
-    },
-    {
-      id: "2",
-      title: "Pamer Bojo",
-      artist: "Denny Caknan",
-      image: "https://i.scdn.co/image/ab67616d0000b2738cb690f962592ec48c4401b0",
-      type: "album"
-    },
-    {
-      id: "3",
-      title: "Takut",
-      artist: "Idgitaf",
-      image: "https://i.scdn.co/image/ab67616d0000b2735f2c77c5556c1e13e0c03bfb",
-      type: "album"
-    },
-    {
-      id: "4",
-      title: "Melawan Restu",
-      artist: "Mahalini",
-      image: "https://i.scdn.co/image/ab67616d0000b273c7e5618d287c81f7e73d3d8c",
-      type: "album"
-    }
-  ];
+      try {
+        setIsLoading(true);
+        
+        // Search for Indonesia playlists
+        const playlistResults = await search(
+          session.accessToken,
+          "indonesia top playlist",
+          ["playlist"],
+          10
+        );
+        
+        // Search for Indonesia artists
+        const artistResults = await search(
+          session.accessToken,
+          "indonesia artist",
+          ["artist"],
+          10
+        );
+        
+        // Search for Indonesia tracks
+        const trackResults = await search(
+          session.accessToken,
+          "indonesia popular",
+          ["track"],
+          10
+        );
+        
+        // Try to find Indonesia category
+        const categoriesData = await getCategories(session.accessToken, 50);
+        const indonesiaCategory = categoriesData.categories?.items?.find(
+          category => category.name.toLowerCase().includes("indonesia") || 
+                     category.name.toLowerCase().includes("indo")
+        );
+        
+        let allPlaylists = [...(playlistResults.playlists?.items || [])];
+        
+        // If we found an Indonesia category, get its playlists
+        if (indonesiaCategory) {
+          const categoryPlaylists = await getCategoryPlaylists(
+            session.accessToken,
+            indonesiaCategory.id,
+            10
+          );
+          
+          allPlaylists = [...allPlaylists, ...(categoryPlaylists.playlists?.items || [])];
+        }
+        
+        // Remove duplicates based on playlist ID
+        const uniquePlaylists = Array.from(
+          new Map(allPlaylists.map(playlist => [playlist.id, playlist])).values()
+        );
+        
+        setIndonesiaContent({
+          playlists: uniquePlaylists,
+          artists: artistResults.artists?.items || [],
+          tracks: trackResults.tracks?.items || []
+        });
+      } catch (err) {
+        console.error("Error fetching Indonesia content:", err);
+        setError("Failed to load Indonesia content. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const categories = [
-    {
-      id: "1",
-      name: "Pop",
-      image: "https://i.scdn.co/image/ab67706f00000002fe6d8d1019d5b302213e3730",
-      color: "from-pink-500 to-purple-500"
-    },
-    {
-      id: "2",
-      name: "Dangdut",
-      image: "https://i.scdn.co/image/ab67706f000000025f0ff9251e3cfe641160dc31",
-      color: "from-orange-500 to-red-500"
-    },
-    {
-      id: "3",
-      name: "Rock",
-      image: "https://i.scdn.co/image/ab67706f00000002fe6d8d1019d5b302213e3730",
-      color: "from-red-600 to-red-900"
-    },
-    {
-      id: "4",
-      name: "Indie",
-      image: "https://i.scdn.co/image/ab67706f000000025f0ff9251e3cfe641160dc31",
-      color: "from-blue-500 to-purple-500"
-    },
-    {
-      id: "5",
-      name: "Hip-Hop",
-      image: "https://i.scdn.co/image/ab67706f00000002fe6d8d1019d5b302213e3730",
-      color: "from-yellow-500 to-orange-500"
-    },
-    {
-      id: "6",
-      name: "Religi",
-      image: "https://i.scdn.co/image/ab67706f000000025f0ff9251e3cfe641160dc31",
-      color: "from-green-500 to-teal-500"
-    }
-  ];
+    fetchIndonesiaContent();
+  }, [session]);
+
+  const handlePlaylistClick = (playlistId) => {
+    router.push(`/dashboard/playlist/${playlistId}`);
+  };
+
+  const handleArtistClick = (artistUrl) => {
+    window.open(artistUrl, '_blank');
+  };
+
+  const handleTrackClick = (trackUrl) => {
+    window.open(trackUrl, '_blank');
+  };
+
+  const formatTime = (ms) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-10 w-10 text-[var(--primary)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error && indonesiaContent.playlists.length === 0 && 
+      indonesiaContent.artists.length === 0 && 
+      indonesiaContent.tracks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-full"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Indonesia</h1>
-        <p className="text-[var(--text-muted)]">Discover the best music from Indonesia</p>
+    <div className="p-6 pb-24">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 flex items-center justify-center rounded-md bg-gradient-to-br from-red-500 to-red-700">
+            <Globe className="h-8 w-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Indonesia Top</h1>
+            <p className="text-gray-400 text-sm">
+              Discover the best music from Indonesia
+            </p>
+          </div>
+        </div>
       </div>
-      
-      {/* Featured Playlists */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-bold mb-6">Featured Playlists</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {featuredPlaylists.map((playlist) => (
-            <a 
-              key={playlist.id}
-              href={`/dashboard/${playlist.type}/${playlist.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg overflow-hidden group"
-            >
-              <div className="relative">
-                <img 
-                  src={playlist.image} 
-                  alt={playlist.title}
-                  className="w-full aspect-square object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="bg-[var(--primary)] rounded-full p-4 transform translate-y-4 group-hover:translate-y-0 transition-transform shadow-lg">
-                    <Play className="h-6 w-6 text-black" fill="currentColor" />
-                  </button>
+
+      {/* Top Playlists */}
+      {indonesiaContent.playlists.length > 0 && (
+        <section className="mb-10">
+          <h2 className="text-xl font-bold mb-4">Top Playlists</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {indonesiaContent.playlists.map((playlist) => (
+              <div 
+                key={playlist.id}
+                className="flex flex-col p-4 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => handlePlaylistClick(playlist.id)}
+              >
+                <div className="aspect-square w-full rounded overflow-hidden mb-3 bg-[#334155]">
+                  {playlist.images && playlist.images[0] ? (
+                    <img
+                      src={playlist.images[0].url}
+                      alt={playlist.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                      <Music className="h-10 w-10 text-gray-400" />
+                    </div>
+                  )}
                 </div>
+                <p className="text-white font-medium truncate">{playlist.name}</p>
+                <p className="text-gray-400 text-sm truncate">
+                  {playlist.description || `By ${playlist.owner.display_name}`}
+                </p>
               </div>
-              <div className="p-4">
-                <h3 className="font-bold text-lg mb-1 truncate">{playlist.title}</h3>
-                <p className="text-sm text-[var(--text-muted)] line-clamp-2">{playlist.description}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
-      
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Top Artists */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-bold mb-6">Top Artists</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-          {topArtists.map((artist) => (
-            <a 
-              key={artist.id}
-              href={`/dashboard/${artist.type}/${artist.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-            >
-              <div className="relative mb-4">
-                <img 
-                  src={artist.image} 
-                  alt={artist.name}
-                  className="w-full aspect-square object-cover rounded-full shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Play className="h-5 w-5 text-black" fill="currentColor" />
+      {indonesiaContent.artists.length > 0 && (
+        <section className="mb-10">
+          <h2 className="text-xl font-bold mb-4">Top Artists</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {indonesiaContent.artists.map((artist) => (
+              <div 
+                key={artist.id}
+                className="flex flex-col items-center p-4 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => handleArtistClick(artist.external_urls.spotify)}
+              >
+                <div className="h-36 w-36 rounded-full overflow-hidden mb-3 bg-[#334155]">
+                  {artist.images && artist.images[0] ? (
+                    <img
+                      src={artist.images[0].url}
+                      alt={artist.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                      <Music className="h-10 w-10 text-gray-400" />
+                    </div>
+                  )}
                 </div>
+                <p className="text-white font-medium text-center">{artist.name}</p>
+                <p className="text-gray-400 text-sm">Artist</p>
               </div>
-              <h3 className="font-semibold truncate text-center">{artist.name}</h3>
-              <p className="text-sm text-[var(--text-muted)] truncate text-center">Artist</p>
-            </a>
-          ))}
-        </div>
-      </section>
-      
-      {/* New Releases */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-bold mb-6">New Releases</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6">
-          {newReleases.map((release) => (
-            <a 
-              key={release.id}
-              href={`/dashboard/${release.type}/${release.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-            >
-              <div className="relative mb-4">
-                <img 
-                  src={release.image} 
-                  alt={release.title}
-                  className="w-full aspect-square object-cover rounded-md shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Play className="h-5 w-5 text-black" fill="currentColor" />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Top Tracks */}
+      {indonesiaContent.tracks.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold mb-4">Top Tracks</h2>
+          <div className="space-y-2">
+            {indonesiaContent.tracks.map((track, index) => (
+              <div 
+                key={track.id}
+                className="flex items-center gap-4 p-3 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => handleTrackClick(track.external_urls.spotify)}
+              >
+                <div className="w-6 text-center text-gray-400">{index + 1}</div>
+                <div className="flex-shrink-0 h-12 w-12 bg-[#334155] rounded overflow-hidden">
+                  {track.album.images[0] ? (
+                    <img
+                      src={track.album.images[0].url}
+                      alt={track.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                      <Music className="h-6 w-6 text-gray-400" />
+                    </div>
+                  )}
                 </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white font-medium truncate">{track.name}</p>
+                  <p className="text-gray-400 text-sm truncate">
+                    {track.artists.map(artist => artist.name).join(", ")}
+                  </p>
+                </div>
+                <div className="text-sm text-gray-400">{formatTime(track.duration_ms)}</div>
               </div>
-              <h3 className="font-semibold truncate">{release.title}</h3>
-              <p className="text-sm text-[var(--text-muted)] truncate">{release.artist}</p>
-            </a>
-          ))}
+            ))}
+          </div>
+        </section>
+      )}
+
+      {indonesiaContent.playlists.length === 0 && 
+       indonesiaContent.artists.length === 0 && 
+       indonesiaContent.tracks.length === 0 && !isLoading && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Globe className="h-16 w-16 text-gray-400 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">No Indonesia content found</h2>
+          <p className="text-gray-400 mb-6">Try again later</p>
         </div>
-      </section>
-      
-      {/* Categories */}
-      <section>
-        <h2 className="text-2xl font-bold mb-6">Browse by Genre</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-6">
-          {categories.map((category) => (
-            <a 
-              key={category.id}
-              href={`/dashboard/genre/${category.id}`}
-              className={`bg-gradient-to-br ${category.color} rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform`}
-            >
-              <h3 className="font-bold text-xl">{category.name}</h3>
-            </a>
-          ))}
-        </div>
-      </section>
+      )}
     </div>
   );
 } 

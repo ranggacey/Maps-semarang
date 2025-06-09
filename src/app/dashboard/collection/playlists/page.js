@@ -1,284 +1,117 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Grid, List, Search, Plus, Filter } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { getCurrentUserPlaylists } from "@/lib/spotify/api";
+import { PlusCircle, Music, Loader2 } from "lucide-react";
 
-export default function LibraryPage() {
+export default function PlaylistsPage() {
   const { data: session } = useSession();
-  const [viewMode, setViewMode] = useState("grid");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
+  const router = useRouter();
+  const [playlists, setPlaylists] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock playlists data
-  const playlists = [
-    {
-      id: "1",
-      name: "Liked Songs",
-      owner: "You",
-      image: "https://misc.scdn.co/liked-songs/liked-songs-640.png",
-      pinned: true,
-      type: "playlist"
-    },
-    {
-      id: "2",
-      name: "Discover Weekly",
-      owner: "Spotify",
-      image: "https://newjams-images.scdn.co/image/ab676477000033ad/dt/v3/discover-weekly/aAbca4VNfzWuUCQ_FGiEFA==/bmVuZW5lbmVuZW5lbmVuZQ==",
-      pinned: false,
-      type: "playlist"
-    },
-    {
-      id: "3",
-      name: "Release Radar",
-      owner: "Spotify",
-      image: "https://newjams-images.scdn.co/image/ab67647800003f8a/dt/v3/release-radar/ab6761610000e5eb8278b782cbb5a3963db88ada/en",
-      pinned: false,
-      type: "playlist"
-    },
-    {
-      id: "4",
-      name: "Daily Mix 1",
-      owner: "Spotify",
-      image: "https://dailymix-images.scdn.co/v2/img/ab6761610000e5eb8278b782cbb5a3963db88ada/1/en/default",
-      pinned: false,
-      type: "playlist"
-    },
-    {
-      id: "5",
-      name: "Rock Classics",
-      owner: "You",
-      image: "https://i.scdn.co/image/ab67706f00000002b5d03b4e18a8c5d2f5328eb0",
-      pinned: true,
-      type: "playlist"
-    },
-    {
-      id: "6",
-      name: "Peaceful Piano",
-      owner: "Spotify",
-      image: "https://i.scdn.co/image/ab67706f00000002ca5a7517156021292e5663a6",
-      pinned: false,
-      type: "playlist"
-    },
-    {
-      id: "7",
-      name: "Lo-Fi Beats",
-      owner: "You",
-      image: "https://i.scdn.co/image/ab67706f000000025ea54b91b073c2776b966e7b",
-      pinned: false,
-      type: "playlist"
-    },
-    {
-      id: "8",
-      name: "Workout Mix",
-      owner: "You",
-      image: "https://i.scdn.co/image/ab67706f000000029249b35f23fb596b6f006a15",
-      pinned: false,
-      type: "playlist"
-    }
-  ];
+  useEffect(() => {
+    const fetchPlaylists = async () => {
+      if (!session?.accessToken) return;
 
-  // Filter playlists based on search query
-  const filteredPlaylists = playlists.filter(playlist => 
-    playlist.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      try {
+        setIsLoading(true);
+        const data = await getCurrentUserPlaylists(session.accessToken);
+        setPlaylists(data.items || []);
+      } catch (err) {
+        console.error("Error fetching playlists:", err);
+        setError("Failed to load playlists. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Group playlists by pinned status
-  const pinnedPlaylists = filteredPlaylists.filter(playlist => playlist.pinned);
-  const otherPlaylists = filteredPlaylists.filter(playlist => !playlist.pinned);
+    fetchPlaylists();
+  }, [session]);
 
-  // Library navigation items
-  const libraryNavItems = [
-    { label: "Playlists", href: "/dashboard/collection/playlists", active: true },
-    { label: "Artists", href: "/dashboard/collection/artists", active: false },
-    { label: "Albums", href: "/dashboard/collection/albums", active: false },
-    { label: "Podcasts", href: "/dashboard/collection/podcasts", active: false }
-  ];
+  const handleCreatePlaylist = () => {
+    router.push("/dashboard/playlist/create");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-10 w-10 text-[var(--primary)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-full"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-8">
-      <div className="flex flex-col space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Your Library</h1>
-          <div className="flex items-center gap-2">
-            {showSearch ? (
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search in Your Library"
-                  className="w-64 pl-10 pr-4 py-2 bg-[var(--card)] border border-[var(--accent)] rounded-full text-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  autoFocus
-                  onBlur={() => searchQuery === "" && setShowSearch(false)}
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
-              </div>
-            ) : (
-              <button 
-                onClick={() => setShowSearch(true)}
-                className="p-2 hover:bg-[var(--hover-light)] rounded-full transition-colors"
-              >
-                <Search className="h-5 w-5" />
-              </button>
-            )}
-            <button className="p-2 hover:bg-[var(--hover-light)] rounded-full transition-colors">
-              <Plus className="h-5 w-5" />
-            </button>
-            <div className="flex border-l border-[var(--accent)] pl-2 ml-2">
-              <button 
-                onClick={() => setViewMode("grid")}
-                className={`p-2 hover:bg-[var(--hover-light)] rounded-full transition-colors ${viewMode === "grid" ? "text-[var(--primary)]" : ""}`}
-              >
-                <Grid className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={() => setViewMode("list")}
-                className={`p-2 hover:bg-[var(--hover-light)] rounded-full transition-colors ${viewMode === "list" ? "text-[var(--primary)]" : ""}`}
-              >
-                <List className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Playlists</h1>
+        <button
+          onClick={handleCreatePlaylist}
+          className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full font-medium hover:bg-opacity-80 transition-colors"
+        >
+          <PlusCircle className="h-5 w-5" />
+          Create Playlist
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {libraryNavItems.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${
-                item.active 
-                  ? "bg-white text-black font-medium" 
-                  : "bg-[var(--card)] hover:bg-[var(--card-hover)] text-white"
-              }`}
-            >
-              {item.label}
-            </a>
-          ))}
-          <button className="px-4 py-1.5 rounded-full text-sm whitespace-nowrap bg-[var(--card)] hover:bg-[var(--card-hover)] flex items-center gap-1">
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
+      {playlists.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Music className="h-16 w-16 text-gray-400 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Create your first playlist</h2>
+          <p className="text-gray-400 mb-6">It's easy, we'll help you</p>
+          <button
+            onClick={handleCreatePlaylist}
+            className="px-6 py-3 bg-white text-black rounded-full font-medium hover:bg-opacity-80 transition-colors"
+          >
+            Create playlist
           </button>
         </div>
-
-        {filteredPlaylists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-xl font-semibold mb-2">No matching playlists found</p>
-            <p className="text-[var(--text-muted)]">Try a different search term</p>
-          </div>
-        ) : (
-          <>
-            {/* Pinned playlists section */}
-            {pinnedPlaylists.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-lg font-bold mb-4">Pinned</h2>
-                {viewMode === "grid" ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                    {pinnedPlaylists.map((playlist) => (
-                      <a 
-                        key={playlist.id}
-                        href={`/dashboard/playlist/${playlist.id}`}
-                        className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-                      >
-                        <div className="relative mb-4">
-                          <img 
-                            src={playlist.image} 
-                            alt={playlist.name}
-                            className="w-full aspect-square object-cover rounded-md shadow-md"
-                          />
-                          <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                            <svg className="h-5 w-5 text-black" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <h3 className="font-semibold truncate">{playlist.name}</h3>
-                        <p className="text-sm text-[var(--text-muted)] truncate">{playlist.owner}</p>
-                      </a>
-                    ))}
-                  </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+          {playlists.map((playlist) => (
+            <div
+              key={playlist.id}
+              onClick={() => router.push(`/dashboard/playlist/${playlist.id}`)}
+              className="group bg-[#1e293b] hover:bg-[#334155] transition-colors duration-300 p-4 rounded-md cursor-pointer"
+            >
+              <div className="aspect-square w-full rounded-md overflow-hidden mb-4 shadow-lg">
+                {playlist.images && playlist.images[0] ? (
+                  <img
+                    src={playlist.images[0].url}
+                    alt={playlist.name}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <div className="space-y-2">
-                    {pinnedPlaylists.map((playlist) => (
-                      <a 
-                        key={playlist.id}
-                        href={`/dashboard/playlist/${playlist.id}`}
-                        className="flex items-center gap-3 p-2 hover:bg-[var(--card-hover)] rounded-md transition-colors"
-                      >
-                        <img 
-                          src={playlist.image} 
-                          alt={playlist.name}
-                          className="w-12 h-12 rounded-md"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">{playlist.name}</h3>
-                          <div className="flex items-center text-sm text-[var(--text-muted)]">
-                            <span className="truncate">{playlist.type.charAt(0).toUpperCase() + playlist.type.slice(1)} • {playlist.owner}</span>
-                          </div>
-                        </div>
-                      </a>
-                    ))}
+                  <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                    <Music className="h-12 w-12 text-gray-400" />
                   </div>
                 )}
               </div>
-            )}
-
-            {/* Other playlists section */}
-            <div>
-              {pinnedPlaylists.length > 0 && <h2 className="text-lg font-bold mb-4">Your Playlists</h2>}
-              {viewMode === "grid" ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                  {otherPlaylists.map((playlist) => (
-                    <a 
-                      key={playlist.id}
-                      href={`/dashboard/playlist/${playlist.id}`}
-                      className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-                    >
-                      <div className="relative mb-4">
-                        <img 
-                          src={playlist.image} 
-                          alt={playlist.name}
-                          className="w-full aspect-square object-cover rounded-md shadow-md"
-                        />
-                        <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                          <svg className="h-5 w-5 text-black" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <h3 className="font-semibold truncate">{playlist.name}</h3>
-                      <p className="text-sm text-[var(--text-muted)] truncate">{playlist.owner}</p>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {otherPlaylists.map((playlist) => (
-                    <a 
-                      key={playlist.id}
-                      href={`/dashboard/playlist/${playlist.id}`}
-                      className="flex items-center gap-3 p-2 hover:bg-[var(--card-hover)] rounded-md transition-colors"
-                    >
-                      <img 
-                        src={playlist.image} 
-                        alt={playlist.name}
-                        className="w-12 h-12 rounded-md"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium truncate">{playlist.name}</h3>
-                        <div className="flex items-center text-sm text-[var(--text-muted)]">
-                          <span className="truncate">{playlist.type.charAt(0).toUpperCase() + playlist.type.slice(1)} • {playlist.owner}</span>
-                        </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
+              <h3 className="font-semibold text-white truncate">{playlist.name}</h3>
+              <p className="text-sm text-gray-400 truncate">
+                {playlist.description || `By ${playlist.owner.display_name}`}
+              </p>
             </div>
-          </>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 } 

@@ -1,156 +1,197 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Clock, Calendar } from "lucide-react";
+import { getRecentlyPlayedTracks } from "@/lib/spotify/api";
+import { Clock, Loader2, Music, History } from "lucide-react";
 
 export default function RecentlyPlayedPage() {
   const { data: session } = useSession();
-  
-  // Mock recently played data
-  const recentItems = [
-    {
-      id: "1",
-      name: "Blinding Lights",
-      artist: "The Weeknd",
-      album: "After Hours",
-      playedAt: "Today at 10:30 AM",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a",
-      type: "track"
-    },
-    {
-      id: "2",
-      name: "After Hours",
-      artist: "The Weeknd",
-      playedAt: "Today at 10:25 AM",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a",
-      type: "album"
-    },
-    {
-      id: "3",
-      name: "The Weeknd",
-      playedAt: "Today at 10:00 AM",
-      image: "https://i.scdn.co/image/ab6761610000e5eb8278b782cbb5a3963db88ada",
-      type: "artist"
-    },
-    {
-      id: "4",
-      name: "Chill Mix",
-      description: "Chill vibes for relaxation",
-      playedAt: "Yesterday at 8:45 PM",
-      image: "https://i.scdn.co/image/ab67706f00000002ca5a7517156021292e5663a6",
-      type: "playlist"
-    },
-    {
-      id: "5",
-      name: "Save Your Tears",
-      artist: "The Weeknd",
-      album: "After Hours",
-      playedAt: "Yesterday at 8:40 PM",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a",
-      type: "track"
-    },
-    {
-      id: "6",
-      name: "Starboy",
-      artist: "The Weeknd",
-      album: "Starboy",
-      playedAt: "Yesterday at 8:35 PM",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a",
-      type: "track"
-    },
-    {
-      id: "7",
-      name: "Peaceful Piano",
-      description: "Relax and indulge with beautiful piano pieces",
-      playedAt: "2 days ago",
-      image: "https://i.scdn.co/image/ab67706f00000002ca5a7517156021292e5663a6",
-      type: "playlist"
-    },
-    {
-      id: "8",
-      name: "Lo-Fi Beats",
-      description: "Beats to relax/study to",
-      playedAt: "3 days ago",
-      image: "https://i.scdn.co/image/ab67706f000000025ea54b91b073c2776b966e7b",
-      type: "playlist"
-    }
-  ];
+  const [recentTracks, setRecentTracks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const limit = 50;
 
-  // Group items by date
-  const groupedItems = recentItems.reduce((groups, item) => {
-    const date = item.playedAt.includes("Today") 
-      ? "Today" 
-      : item.playedAt.includes("Yesterday")
-        ? "Yesterday"
-        : "Earlier";
-    
-    if (!groups[date]) {
-      groups[date] = [];
+  useEffect(() => {
+    const fetchRecentlyPlayed = async () => {
+      if (!session?.accessToken) return;
+
+      try {
+        setIsLoading(true);
+        const data = await getRecentlyPlayedTracks(
+          session.accessToken, 
+          limit, 
+          page > 0 ? recentTracks[recentTracks.length - 1].played_at : null
+        );
+        
+        setRecentTracks(prevTracks => {
+          if (page === 0) return data.items || [];
+          return [...prevTracks, ...(data.items || [])];
+        });
+        
+        setHasMore((data.items || []).length === limit);
+      } catch (err) {
+        console.error("Error fetching recently played tracks:", err);
+        setError("Failed to load your recently played tracks. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecentlyPlayed();
+  }, [session, page]);
+
+  const loadMore = () => {
+    if (!isLoading && hasMore) {
+      setPage(prevPage => prevPage + 1);
     }
-    
-    groups[date].push(item);
-    return groups;
-  }, {});
+  };
+
+  const formatTime = (ms) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatPlayedAt = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 60) {
+      return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    } else {
+      return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+  };
+
+  if (isLoading && page === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-10 w-10 text-[var(--primary)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error && recentTracks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-full"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-8">
-      <h1 className="text-3xl font-bold mb-6">Recently Played</h1>
-      
-      {Object.entries(groupedItems).map(([date, items]) => (
-        <div key={date} className="mb-8">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            <span>{date}</span>
-          </h2>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {items.map((item) => (
-              <a 
-                key={item.id}
-                href={`/dashboard/${item.type}/${item.id}`}
-                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-              >
-                <div className="relative mb-4">
-                  <img 
-                    src={item.image} 
-                    alt={item.name}
-                    className={`w-full aspect-square object-cover shadow-md ${item.type === 'artist' ? 'rounded-full' : 'rounded-md'}`}
-                  />
-                  <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                    <svg className="h-5 w-5 text-black" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="font-semibold truncate">{item.name}</h3>
-                <div className="text-sm text-[var(--text-muted)] truncate">
-                  {item.type === 'track' && (
-                    <span>{item.artist}</span>
-                  )}
-                  {item.type === 'album' && (
-                    <span>Album • {item.artist}</span>
-                  )}
-                  {item.type === 'artist' && (
-                    <span>Artist</span>
-                  )}
-                  {item.type === 'playlist' && (
-                    <span>Playlist • {item.description}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 mt-2 text-xs text-[var(--text-muted)]">
-                  <Clock className="h-3 w-3" />
-                  <span>{item.playedAt}</span>
-                </div>
-              </a>
-            ))}
+    <div className="p-6 pb-24">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 flex items-center justify-center rounded-md bg-gradient-to-br from-green-500 to-emerald-600">
+            <History className="h-8 w-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Recently Played</h1>
+            <p className="text-gray-400 text-sm">
+              {recentTracks.length} {recentTracks.length === 1 ? 'track' : 'tracks'}
+            </p>
           </div>
         </div>
-      ))}
-      
-      <div className="mt-12 text-center">
-        <p className="text-[var(--text-muted)]">Only showing recent activity. Listen to more music to expand your history.</p>
       </div>
+
+      {recentTracks.length === 0 && !isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <History className="h-16 w-16 text-gray-400 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">No recently played tracks</h2>
+          <p className="text-gray-400 mb-6">Listen to some music and check back later</p>
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 border-b border-[#334155] pb-2">
+            <div className="grid grid-cols-[4fr_3fr_2fr_1fr] gap-4 px-4 text-sm text-gray-400">
+              <div>TITLE</div>
+              <div>ALBUM</div>
+              <div>PLAYED</div>
+              <div className="flex justify-end">
+                <Clock className="h-4 w-4" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {recentTracks.map((item, index) => (
+              <div
+                key={`${item.track.id}-${item.played_at}`}
+                className="grid grid-cols-[4fr_3fr_2fr_1fr] gap-4 px-4 py-2 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => window.open(item.track.external_urls.spotify, '_blank')}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex-shrink-0 h-10 w-10 bg-[#334155] rounded overflow-hidden">
+                    {item.track.album.images[0] ? (
+                      <img
+                        src={item.track.album.images[0].url}
+                        alt={item.track.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                        <Music className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-medium truncate">{item.track.name}</p>
+                    <p className="text-gray-400 text-sm truncate">
+                      {item.track.artists.map(artist => artist.name).join(", ")}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center text-gray-400 truncate">
+                  {item.track.album.name}
+                </div>
+                <div className="flex items-center text-gray-400 text-sm">
+                  {formatPlayedAt(item.played_at)}
+                </div>
+                <div className="flex items-center justify-end text-gray-400 text-sm">
+                  {formatTime(item.track.duration_ms)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {hasMore && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={loadMore}
+                className="px-6 py-2 rounded-full bg-[#334155] hover:bg-[#475569] text-white flex items-center gap-2"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Load More'
+                )}
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 } 

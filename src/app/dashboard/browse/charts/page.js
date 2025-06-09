@@ -1,178 +1,153 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Globe, BarChart2, Music, Play } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { search, getCategories, getCategoryPlaylists } from "@/lib/spotify/api";
+import { BarChart2, Loader2, Music } from "lucide-react";
 
 export default function ChartsPage() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState("global");
-  
-  // Mock chart data
-  const charts = {
-    global: [
-      {
-        id: "1",
-        title: "Top 50 - Global",
-        description: "Your daily update of the most played tracks right now - Global.",
-        image: "https://charts-images.scdn.co/assets/locale_en/regional/daily/region_global_default.jpg",
-        type: "playlist"
-      },
-      {
-        id: "2",
-        title: "Global Viral 50",
-        description: "The most viral tracks on Spotify right now - Global.",
-        image: "https://charts-images.scdn.co/assets/locale_en/viral/daily/region_global_default.jpg",
-        type: "playlist"
-      },
-      {
-        id: "3",
-        title: "Top Artists - Global",
-        description: "The most streamed artists worldwide.",
-        image: "https://i.scdn.co/image/ab67706c0000da84fcb8b92f2615d3261b8eb146",
-        type: "playlist"
+  const router = useRouter();
+  const [chartPlaylists, setChartPlaylists] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchCharts = async () => {
+      if (!session?.accessToken) return;
+
+      try {
+        setIsLoading(true);
+        
+        // First, try to search for chart playlists
+        const searchResults = await search(
+          session.accessToken,
+          "charts top 50",
+          ["playlist"],
+          20
+        );
+        
+        // Then try to find chart category
+        const categoriesData = await getCategories(session.accessToken, 50);
+        const chartCategory = categoriesData.categories?.items?.find(
+          category => category.name.toLowerCase().includes("chart") || 
+                     category.name.toLowerCase().includes("top") ||
+                     category.name.toLowerCase().includes("viral")
+        );
+        
+        let allCharts = [...(searchResults.playlists?.items || [])];
+        
+        // If we found a chart category, get its playlists
+        if (chartCategory) {
+          const categoryPlaylists = await getCategoryPlaylists(
+            session.accessToken,
+            chartCategory.id,
+            20
+          );
+          
+          allCharts = [...allCharts, ...(categoryPlaylists.playlists?.items || [])];
+        }
+        
+        // Remove duplicates based on playlist ID
+        const uniqueCharts = Array.from(
+          new Map(allCharts.map(chart => [chart.id, chart])).values()
+        );
+        
+        setChartPlaylists(uniqueCharts);
+      } catch (err) {
+        console.error("Error fetching charts:", err);
+        setError("Failed to load charts. Please try again later.");
+      } finally {
+        setIsLoading(false);
       }
-    ],
-    indonesia: [
-      {
-        id: "4",
-        title: "Top 50 - Indonesia",
-        description: "Your daily update of the most played tracks right now - Indonesia.",
-        image: "https://charts-images.scdn.co/assets/locale_en/regional/daily/region_id_default.jpg",
-        type: "playlist"
-      },
-      {
-        id: "5",
-        title: "Indonesia Viral 50",
-        description: "The most viral tracks on Spotify right now - Indonesia.",
-        image: "https://charts-images.scdn.co/assets/locale_en/viral/daily/region_id_default.jpg",
-        type: "playlist"
-      },
-      {
-        id: "6",
-        title: "Top Artists - Indonesia",
-        description: "The most streamed artists in Indonesia.",
-        image: "https://i.scdn.co/image/ab67706c0000da84fcb8b92f2615d3261b8eb146",
-        type: "playlist"
-      }
-    ],
-    genres: [
-      {
-        id: "7",
-        title: "Top Rock Tracks",
-        description: "The most popular rock tracks right now.",
-        image: "https://i.scdn.co/image/ab67706c0000da84fcb8b92f2615d3261b8eb146",
-        type: "playlist"
-      },
-      {
-        id: "8",
-        title: "Top Pop Tracks",
-        description: "The most popular pop tracks right now.",
-        image: "https://i.scdn.co/image/ab67706c0000da84fcb8b92f2615d3261b8eb146",
-        type: "playlist"
-      },
-      {
-        id: "9",
-        title: "Top Hip-Hop Tracks",
-        description: "The most popular hip-hop tracks right now.",
-        image: "https://i.scdn.co/image/ab67706c0000da84fcb8b92f2615d3261b8eb146",
-        type: "playlist"
-      },
-      {
-        id: "10",
-        title: "Top Electronic/Dance Tracks",
-        description: "The most popular electronic tracks right now.",
-        image: "https://i.scdn.co/image/ab67706c0000da84fcb8b92f2615d3261b8eb146",
-        type: "playlist"
-      }
-    ]
+    };
+
+    fetchCharts();
+  }, [session]);
+
+  const handlePlaylistClick = (playlistId) => {
+    router.push(`/dashboard/playlist/${playlistId}`);
   };
 
-  // Tabs for chart categories
-  const tabs = [
-    { id: "global", label: "Global", icon: Globe },
-    { id: "indonesia", label: "Indonesia", icon: BarChart2 },
-    { id: "genres", label: "By Genre", icon: Music }
-  ];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-10 w-10 text-[var(--primary)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error && chartPlaylists.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-full"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Charts</h1>
-        <p className="text-[var(--text-muted)]">The most played tracks on Spotify</p>
+    <div className="p-6 pb-24">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 flex items-center justify-center rounded-md bg-gradient-to-br from-yellow-500 to-amber-600">
+            <BarChart2 className="h-8 w-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Charts</h1>
+            <p className="text-gray-400 text-sm">
+              Top songs and playlists from around the world
+            </p>
+          </div>
+        </div>
       </div>
-      
-      {/* Tabs */}
-      <div className="flex border-b border-[var(--accent)] mb-8">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
-              activeTab === tab.id
-                ? "border-b-2 border-[var(--primary)] text-white"
-                : "text-[var(--text-muted)] hover:text-white"
-            }`}
-          >
-            <tab.icon className="h-5 w-5" />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-      
-      {/* Chart cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {charts[activeTab].map((chart) => (
-          <a 
-            key={chart.id}
-            href={`/dashboard/${chart.type}/${chart.id}`}
-            className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg overflow-hidden group"
-          >
-            <div className="relative">
-              <img 
-                src={chart.image} 
-                alt={chart.title}
-                className="w-full aspect-square object-cover"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="bg-[var(--primary)] rounded-full p-4 transform translate-y-4 group-hover:translate-y-0 transition-transform shadow-lg">
-                  <Play className="h-6 w-6 text-black" fill="currentColor" />
-                </button>
-              </div>
-            </div>
-            <div className="p-4">
-              <h3 className="font-bold text-lg mb-1">{chart.title}</h3>
-              <p className="text-sm text-[var(--text-muted)]">{chart.description}</p>
-            </div>
-          </a>
-        ))}
-      </div>
-      
-      {/* Trending section */}
-      <div className="mt-12">
-        <h2 className="text-2xl font-bold mb-6">Trending Now</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+
+      {chartPlaylists.length === 0 && !isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <BarChart2 className="h-16 w-16 text-gray-400 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">No chart playlists found</h2>
+          <p className="text-gray-400 mb-6">Try again later</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+          {chartPlaylists.map((playlist) => (
             <div 
-              key={`trending-${i}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+              key={playlist.id}
+              className="flex flex-col p-4 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+              onClick={() => handlePlaylistClick(playlist.id)}
             >
-              <div className="relative mb-4">
-                <img 
-                  src={`https://picsum.photos/seed/${i + 100}/300/300`}
-                  alt={`Trending ${i}`}
-                  className="w-full aspect-square object-cover rounded-md shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Play className="h-5 w-5 text-black" fill="currentColor" />
-                </div>
+              <div className="aspect-square w-full rounded overflow-hidden mb-3 bg-[#334155]">
+                {playlist.images && playlist.images[0] ? (
+                  <img
+                    src={playlist.images[0].url}
+                    alt={playlist.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                    <Music className="h-10 w-10 text-gray-400" />
+                  </div>
+                )}
               </div>
-              <h3 className="font-semibold truncate">Trending Track {i}</h3>
-              <p className="text-sm text-[var(--text-muted)] truncate">Various Artists</p>
+              <p className="text-white font-medium truncate">{playlist.name}</p>
+              <p className="text-gray-400 text-sm truncate">
+                {playlist.description || `By ${playlist.owner.display_name}`}
+              </p>
+              {playlist.tracks && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {playlist.tracks.total} tracks
+                </p>
+              )}
             </div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 } 

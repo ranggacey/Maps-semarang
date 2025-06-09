@@ -5,8 +5,15 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Play } from "lucide-react";
+import { Play, Clock, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { 
+  getTopArtists, 
+  getTopTracks, 
+  getRecentlyPlayedTracks, 
+  getFeaturedPlaylists, 
+  getNewReleases 
+} from "@/lib/spotify/api";
 
 export default function DashboardPage({ playTrack }) {
   const router = useRouter();
@@ -18,6 +25,14 @@ export default function DashboardPage({ playTrack }) {
   const [topArtists, setTopArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [error, setError] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    topArtists: [],
+    topTracks: [],
+    recentlyPlayed: [],
+    featuredPlaylists: [],
+    newReleases: []
+  });
 
   useEffect(() => {
     // Set greeting based on time of day
@@ -37,62 +52,37 @@ export default function DashboardPage({ playTrack }) {
 
     // Fetch user data if session exists
     if (session?.accessToken) {
-      fetchUserData(session.accessToken);
+      fetchDashboardData(session.accessToken);
     }
   }, [session]);
 
-  const fetchUserData = async (token) => {
+  const fetchDashboardData = async (token) => {
     setLoading(true);
     try {
-      // Fetch user playlists
-      const playlistsResponse = await fetch('https://api.spotify.com/v1/me/playlists?limit=6', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (playlistsResponse.ok) {
-        const playlistsData = await playlistsResponse.json();
-        setUserPlaylists(playlistsData.items || []);
-      }
+      const [
+        topArtistsData,
+        topTracksData,
+        recentlyPlayedData,
+        featuredPlaylistsData,
+        newReleasesData
+      ] = await Promise.all([
+        getTopArtists(token, 'short_term', 10),
+        getTopTracks(token, 'short_term', 10),
+        getRecentlyPlayedTracks(token, 10),
+        getFeaturedPlaylists(token, 10),
+        getNewReleases(token, 10)
+      ]);
 
-      // Fetch featured playlists
-      const featuredResponse = await fetch('https://api.spotify.com/v1/browse/featured-playlists?limit=5', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      setDashboardData({
+        topArtists: topArtistsData.items || [],
+        topTracks: topTracksData.items || [],
+        recentlyPlayed: recentlyPlayedData.items || [],
+        featuredPlaylists: featuredPlaylistsData.playlists?.items || [],
+        newReleases: newReleasesData.albums?.items || []
       });
-      
-      if (featuredResponse.ok) {
-        const featuredData = await featuredResponse.json();
-        setFeaturedPlaylists(featuredData.playlists?.items || []);
-      }
-
-      // Fetch new releases
-      const newReleasesResponse = await fetch('https://api.spotify.com/v1/browse/new-releases?limit=4', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (newReleasesResponse.ok) {
-        const newReleasesData = await newReleasesResponse.json();
-        setNewReleases(newReleasesData.albums?.items || []);
-      }
-
-      // Fetch user's top artists
-      const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=6', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (topArtistsResponse.ok) {
-        const topArtistsData = await topArtistsResponse.json();
-        setTopArtists(topArtistsData.items || []);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+      setError("Failed to load data. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -108,11 +98,31 @@ export default function DashboardPage({ playTrack }) {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--primary)]"></div>
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-10 w-10 text-[var(--primary)] animate-spin" />
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-full"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const formatTime = (ms) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="pb-8">
@@ -121,193 +131,214 @@ export default function DashboardPage({ playTrack }) {
       </div>
       
       {/* Recently Played */}
-      {userPlaylists.length > 0 && (
+      {dashboardData.recentlyPlayed.length > 0 && (
         <section className="mb-8">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {userPlaylists.slice(0, 6).map((playlist) => (
-              <Link 
-                key={playlist.id}
-                href={`/dashboard/playlist/${playlist.id}`}
-                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg overflow-hidden flex h-16 group"
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Recently Played</h2>
+            <button 
+              onClick={() => router.push('/dashboard/collection/recent')}
+              className="text-sm text-gray-400 hover:text-white"
+            >
+              Show all
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {dashboardData.recentlyPlayed.slice(0, 6).map((item) => (
+              <div 
+                key={`${item.track.id}-${item.played_at}`}
+                className="flex items-center gap-4 p-2 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => window.open(item.track.external_urls.spotify, '_blank')}
               >
-                <img 
-                  src={playlist.images?.[0]?.url || '/placeholder-playlist.png'} 
-                  alt={playlist.name}
-                  className="h-16 w-16 object-cover"
-                />
-                <div className="flex-1 flex items-center px-4">
-                  <h3 className="font-bold truncate">{playlist.name}</h3>
+                <div className="flex-shrink-0 h-12 w-12 bg-[#334155] rounded overflow-hidden">
+                  {item.track.album.images[0] ? (
+                    <img
+                      src={item.track.album.images[0].url}
+                      alt={item.track.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                      <Clock className="h-6 w-6 text-gray-400" />
+                    </div>
+                  )}
                 </div>
-                <div className="relative opacity-0 group-hover:opacity-100 transition-opacity flex items-center pr-2">
-                  <button 
-                    className="bg-[var(--primary)] rounded-full p-2 shadow-lg"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      playTrack(playlist);
-                    }}
-                  >
-                    <Play className="h-4 w-4 text-black" fill="currentColor" />
-                  </button>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white font-medium truncate">{item.track.name}</p>
+                  <p className="text-gray-400 text-sm truncate">
+                    {item.track.artists.map(artist => artist.name).join(", ")}
+                  </p>
                 </div>
-              </Link>
+                <div className="flex items-center text-sm text-gray-400">
+                  <Clock className="h-4 w-4 mr-1" />
+                  <span>{formatTime(item.track.duration_ms)}</span>
+                </div>
+              </div>
             ))}
           </div>
         </section>
       )}
       
       {/* Featured Playlists */}
-      {featuredPlaylists.length > 0 && (
+      {dashboardData.featuredPlaylists.length > 0 && (
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold">Featured Playlists</h2>
-            <Link href="/dashboard/browse/featured" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
-              See all
-            </Link>
+            <button 
+              onClick={() => router.push('/dashboard/browse/playlists')}
+              className="text-sm text-gray-400 hover:text-white"
+            >
+              Show all
+            </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {featuredPlaylists.map((playlist) => (
-              <Link 
+            {dashboardData.featuredPlaylists.slice(0, 5).map((playlist) => (
+              <div 
                 key={playlist.id}
-                href={`/dashboard/playlist/${playlist.id}`}
-                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+                className="flex flex-col p-4 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => router.push(`/dashboard/playlist/${playlist.id}`)}
               >
-                <div className="relative mb-4">
-                  <img 
-                    src={playlist.images?.[0]?.url || '/placeholder-playlist.png'} 
-                    alt={playlist.name}
-                    className="w-full aspect-square object-cover rounded-md shadow-md"
-                  />
-                  <div 
-                    className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      playTrack(playlist);
-                    }}
-                  >
-                    <Play className="h-5 w-5 text-black" fill="currentColor" />
-                  </div>
+                <div className="aspect-square w-full rounded overflow-hidden mb-3 bg-[#334155]">
+                  {playlist.images && playlist.images[0] ? (
+                    <img
+                      src={playlist.images[0].url}
+                      alt={playlist.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]"></div>
+                  )}
                 </div>
-                <h3 className="font-semibold truncate">{playlist.name}</h3>
-                <p className="text-sm text-[var(--text-muted)] line-clamp-2">{playlist.description}</p>
-              </Link>
+                <p className="text-white font-medium truncate">{playlist.name}</p>
+                <p className="text-gray-400 text-sm truncate">
+                  By {playlist.owner.display_name}
+                </p>
+              </div>
             ))}
           </div>
         </section>
       )}
       
       {/* New Releases */}
-      {newReleases.length > 0 && (
+      {dashboardData.newReleases.length > 0 && (
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold">New Releases</h2>
-            <Link href="/dashboard/browse/new-releases" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
-              See all
-            </Link>
+            <button 
+              onClick={() => router.push('/dashboard/browse/new-releases')}
+              className="text-sm text-gray-400 hover:text-white"
+            >
+              Show all
+            </button>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6">
-            {newReleases.map((album) => (
-              <Link 
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {dashboardData.newReleases.slice(0, 5).map((album) => (
+              <div 
                 key={album.id}
-                href={`/dashboard/album/${album.id}`}
-                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+                className="flex flex-col p-4 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => window.open(album.external_urls.spotify, '_blank')}
               >
-                <div className="relative mb-4">
-                  <img 
-                    src={album.images?.[0]?.url || '/placeholder-album.png'} 
-                    alt={album.name}
-                    className="w-full aspect-square object-cover rounded-md shadow-md"
-                  />
-                  <div 
-                    className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      playTrack(album);
-                    }}
-                  >
-                    <Play className="h-5 w-5 text-black" fill="currentColor" />
-                  </div>
+                <div className="aspect-square w-full rounded overflow-hidden mb-3 bg-[#334155]">
+                  {album.images && album.images[0] ? (
+                    <img
+                      src={album.images[0].url}
+                      alt={album.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]"></div>
+                  )}
                 </div>
-                <h3 className="font-semibold truncate">{album.name}</h3>
-                <p className="text-sm text-[var(--text-muted)] truncate">
-                  {album.artists?.map(artist => artist.name).join(', ')}
+                <p className="text-white font-medium truncate">{album.name}</p>
+                <p className="text-gray-400 text-sm truncate">
+                  {album.artists.map(artist => artist.name).join(", ")}
                 </p>
-              </Link>
+              </div>
             ))}
           </div>
         </section>
       )}
       
       {/* Top Artists */}
-      {topArtists.length > 0 && (
-        <section>
+      {dashboardData.topArtists.length > 0 && (
+        <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold">Your Top Artists</h2>
-            <Link href="/dashboard/collection/artists" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
-              See all
-            </Link>
+            <button 
+              onClick={() => router.push('/dashboard/collection/artists')}
+              className="text-sm text-gray-400 hover:text-white"
+            >
+              Show all
+            </button>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {topArtists.map((artist) => (
-              <Link 
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {dashboardData.topArtists.slice(0, 5).map((artist) => (
+              <div 
                 key={artist.id}
-                href={`/dashboard/artist/${artist.id}`}
-                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+                className="flex flex-col items-center p-4 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => window.open(artist.external_urls.spotify, '_blank')}
               >
-                <div className="relative mb-4">
-                  <img 
-                    src={artist.images?.[0]?.url || '/placeholder-artist.png'} 
-                    alt={artist.name}
-                    className="w-full aspect-square object-cover rounded-full shadow-md"
-                  />
-                  <div 
-                    className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      playTrack(artist);
-                    }}
-                  >
-                    <Play className="h-5 w-5 text-black" fill="currentColor" />
-                  </div>
+                <div className="h-36 w-36 rounded-full overflow-hidden mb-3 bg-[#334155]">
+                  {artist.images && artist.images[0] ? (
+                    <img
+                      src={artist.images[0].url}
+                      alt={artist.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]"></div>
+                  )}
                 </div>
-                <h3 className="font-semibold truncate text-center">{artist.name}</h3>
-                <p className="text-sm text-[var(--text-muted)] truncate text-center">Artist</p>
-              </Link>
+                <p className="text-white font-medium text-center">{artist.name}</p>
+                <p className="text-gray-400 text-sm">Artist</p>
+              </div>
             ))}
           </div>
         </section>
       )}
       
-      {/* Indonesia Content */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Indonesia</h2>
-          <a href="/dashboard/browse/indonesia" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
-            See all
-          </a>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6">
-          {mockIndonesiaTopPicks.slice(0, 4).map((item) => (
-            <a 
-              key={item.id}
-              href={`/dashboard/${item.type}/${item.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+      {/* Top Tracks */}
+      {dashboardData.topTracks.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Your Top Tracks</h2>
+            <button 
+              onClick={() => router.push('/dashboard/collection/tracks')}
+              className="text-sm text-gray-400 hover:text-white"
             >
-              <div className="relative mb-4">
-                <img 
-                  src={item.images?.[0]?.url} 
-                  alt={item.name}
-                  className="w-full aspect-square object-cover rounded-md shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Play className="h-5 w-5 text-black" fill="currentColor" />
+              Show all
+            </button>
+          </div>
+          <div className="space-y-2">
+            {dashboardData.topTracks.slice(0, 10).map((track, index) => (
+              <div 
+                key={track.id}
+                className="flex items-center gap-4 p-3 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => window.open(track.external_urls.spotify, '_blank')}
+              >
+                <div className="w-6 text-center text-gray-400">{index + 1}</div>
+                <div className="flex-shrink-0 h-12 w-12 bg-[#334155] rounded overflow-hidden">
+                  {track.album.images[0] ? (
+                    <img
+                      src={track.album.images[0].url}
+                      alt={track.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-[#334155]"></div>
+                  )}
                 </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white font-medium truncate">{track.name}</p>
+                  <p className="text-gray-400 text-sm truncate">
+                    {track.artists.map(artist => artist.name).join(", ")}
+                  </p>
+                </div>
+                <div className="text-sm text-gray-400">{formatTime(track.duration_ms)}</div>
               </div>
-              <h3 className="font-semibold truncate">{item.name}</h3>
-              <p className="text-sm text-[var(--text-muted)] line-clamp-2">{item.description}</p>
-            </a>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
       
       {/* Demo Mode Notice */}
       {isDemoMode && (

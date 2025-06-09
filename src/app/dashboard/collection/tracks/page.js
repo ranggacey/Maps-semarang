@@ -1,223 +1,181 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Clock, Search, MoreHorizontal, Play } from "lucide-react";
+import { getSavedTracks } from "@/lib/spotify/api";
+import { Heart, Clock, Loader2, Music } from "lucide-react";
 
 export default function LikedSongsPage() {
   const { data: session } = useSession();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
-  
-  // Mock liked songs data
-  const likedSongs = [
-    {
-      id: "1",
-      title: "Blinding Lights",
-      artist: "The Weeknd",
-      album: "After Hours",
-      duration: "3:20",
-      addedAt: "2023-09-15",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "2",
-      title: "Save Your Tears",
-      artist: "The Weeknd",
-      album: "After Hours",
-      duration: "3:35",
-      addedAt: "2023-09-14",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "3",
-      title: "Starboy",
-      artist: "The Weeknd, Daft Punk",
-      album: "Starboy",
-      duration: "3:50",
-      addedAt: "2023-09-10",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "4",
-      title: "Die For You",
-      artist: "The Weeknd",
-      album: "Starboy",
-      duration: "4:20",
-      addedAt: "2023-09-05",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "5",
-      title: "Flowers",
-      artist: "Miley Cyrus",
-      album: "Endless Summer Vacation",
-      duration: "3:21",
-      addedAt: "2023-08-28",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "6",
-      title: "As It Was",
-      artist: "Harry Styles",
-      album: "Harry's House",
-      duration: "2:47",
-      addedAt: "2023-08-20",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "7",
-      title: "Unholy",
-      artist: "Sam Smith, Kim Petras",
-      album: "Gloria",
-      duration: "2:36",
-      addedAt: "2023-08-15",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "8",
-      title: "Anti-Hero",
-      artist: "Taylor Swift",
-      album: "Midnights",
-      duration: "3:21",
-      addedAt: "2023-08-10",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "9",
-      title: "Kill Bill",
-      artist: "SZA",
-      album: "SOS",
-      duration: "2:33",
-      addedAt: "2023-08-05",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    },
-    {
-      id: "10",
-      title: "Creepin'",
-      artist: "Metro Boomin, The Weeknd, 21 Savage",
-      album: "HEROES & VILLAINS",
-      duration: "3:41",
-      addedAt: "2023-07-28",
-      image: "https://i.scdn.co/image/ab67616d0000b273a048415db06a5b6fa7ec4e1a"
-    }
-  ];
+  const [likedTracks, setLikedTracks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const limit = 50;
 
-  // Filter songs based on search query
-  const filteredSongs = likedSongs.filter(song => 
-    song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    song.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    song.album.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchLikedSongs = async () => {
+      if (!session?.accessToken) return;
+
+      try {
+        setIsLoading(true);
+        const data = await getSavedTracks(session.accessToken, limit, page * limit);
+        setLikedTracks(prevTracks => {
+          if (page === 0) return data.items || [];
+          return [...prevTracks, ...(data.items || [])];
+        });
+        setHasMore((data.items || []).length === limit);
+      } catch (err) {
+        console.error("Error fetching liked songs:", err);
+        setError("Failed to load your liked songs. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLikedSongs();
+  }, [session, page]);
+
+  const loadMore = () => {
+    if (!isLoading && hasMore) {
+      setPage(prevPage => prevPage + 1);
+    }
+  };
+
+  const formatTime = (ms) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  if (isLoading && page === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-10 w-10 text-[var(--primary)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error && likedTracks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-full"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-8">
-      {/* Header */}
-      <div className="relative h-80 bg-gradient-to-b from-[var(--primary)] to-[var(--background)] mb-6">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--background)] opacity-90"></div>
-        <div className="absolute bottom-0 left-0 p-8 flex items-end">
-          <div className="mr-6">
-            <img 
-              src="https://misc.scdn.co/liked-songs/liked-songs-640.png" 
-              alt="Liked Songs" 
-              className="w-52 h-52 shadow-2xl"
-            />
+    <div className="p-6 pb-24">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 flex items-center justify-center rounded-md bg-gradient-to-br from-purple-600 to-blue-600">
+            <Heart className="h-8 w-8 text-white" fill="white" />
           </div>
           <div>
-            <p className="uppercase text-sm font-bold mb-2">Playlist</p>
-            <h1 className="text-7xl font-extrabold mb-6">Liked Songs</h1>
-            <div className="flex items-center text-sm">
-              <span className="font-semibold">{session?.user?.name || "User"}</span>
-              <span className="mx-1">•</span>
-              <span>{filteredSongs.length} songs</span>
+            <h1 className="text-2xl font-bold">Liked Songs</h1>
+            <p className="text-gray-400 text-sm">
+              {likedTracks.length} {likedTracks.length === 1 ? 'song' : 'songs'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {likedTracks.length === 0 && !isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Heart className="h-16 w-16 text-gray-400 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Songs you like will appear here</h2>
+          <p className="text-gray-400 mb-6">Save songs by tapping the heart icon</p>
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 border-b border-[#334155] pb-2">
+            <div className="grid grid-cols-[16px_4fr_3fr_2fr_1fr] gap-4 px-4 text-sm text-gray-400">
+              <div className="text-center">#</div>
+              <div>TITLE</div>
+              <div>ALBUM</div>
+              <div>DATE ADDED</div>
+              <div className="flex justify-end">
+                <Clock className="h-4 w-4" />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Controls */}
-      <div className="flex items-center gap-6 mb-6">
-        <button className="w-14 h-14 flex items-center justify-center bg-[var(--primary)] rounded-full hover:scale-105 transition-transform shadow-lg">
-          <Play className="h-7 w-7 text-black ml-1" fill="currentColor" />
-        </button>
-        
-        {showSearch ? (
-          <div className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search in your liked songs"
-              className="w-64 pl-10 pr-4 py-2 bg-[var(--card)] border border-[var(--accent)] rounded-full text-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-              autoFocus
-              onBlur={() => searchQuery === "" && setShowSearch(false)}
-            />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
-          </div>
-        ) : (
-          <button 
-            onClick={() => setShowSearch(true)}
-            className="p-2 hover:bg-[var(--hover-light)] rounded-full transition-colors"
-          >
-            <Search className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Songs Table */}
-      <div className="bg-[var(--card)] bg-opacity-30 rounded-lg overflow-hidden">
-        {/* Table Header */}
-        <div className="grid grid-cols-[16px_4fr_3fr_2fr_1fr] gap-4 px-4 py-2 border-b border-[var(--accent)] text-sm text-[var(--text-muted)]">
-          <div className="text-center">#</div>
-          <div>Title</div>
-          <div>Album</div>
-          <div>Date Added</div>
-          <div className="flex justify-end">
-            <Clock className="h-5 w-5" />
-          </div>
-        </div>
-
-        {/* Table Body */}
-        {filteredSongs.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-xl font-semibold mb-2">No songs found</p>
-            <p className="text-[var(--text-muted)]">Try a different search term</p>
-          </div>
-        ) : (
-          <div>
-            {filteredSongs.map((song, index) => (
-              <div 
-                key={song.id}
-                className="grid grid-cols-[16px_4fr_3fr_2fr_1fr] gap-4 px-4 py-2 hover:bg-[var(--card-hover)] transition-colors items-center group"
+          <div className="space-y-2">
+            {likedTracks.map((item, index) => (
+              <div
+                key={`${item.track.id}-${index}`}
+                className="grid grid-cols-[16px_4fr_3fr_2fr_1fr] gap-4 px-4 py-2 rounded-md hover:bg-[#1e293b] transition-colors cursor-pointer"
+                onClick={() => window.open(item.track.external_urls.spotify, '_blank')}
               >
-                <div className="text-center text-[var(--text-muted)] group-hover:hidden">{index + 1}</div>
-                <div className="text-center text-white hidden group-hover:block">
-                  <Play className="h-4 w-4" fill="currentColor" />
+                <div className="flex items-center justify-center text-gray-400">
+                  {index + 1}
                 </div>
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={song.image} 
-                    alt={song.title}
-                    className="w-10 h-10"
-                  />
-                  <div>
-                    <p className="font-medium truncate">{song.title}</p>
-                    <p className="text-sm text-[var(--text-muted)] truncate">{song.artist}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex-shrink-0 h-10 w-10 bg-[#334155] rounded overflow-hidden">
+                    {item.track.album.images[0] ? (
+                      <img
+                        src={item.track.album.images[0].url}
+                        alt={item.track.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-[#334155]">
+                        <Music className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-medium truncate">{item.track.name}</p>
+                    <p className="text-gray-400 text-sm truncate">
+                      {item.track.artists.map(artist => artist.name).join(", ")}
+                    </p>
                   </div>
                 </div>
-                <div className="truncate text-[var(--text-muted)]">{song.album}</div>
-                <div className="text-[var(--text-muted)] text-sm">{song.addedAt}</div>
-                <div className="flex justify-end items-center gap-4">
-                  <button className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </button>
-                  <span className="text-[var(--text-muted)]">{song.duration}</span>
+                <div className="flex items-center text-gray-400 truncate">
+                  {item.track.album.name}
+                </div>
+                <div className="flex items-center text-gray-400 text-sm">
+                  {formatDate(item.added_at)}
+                </div>
+                <div className="flex items-center justify-end text-gray-400 text-sm">
+                  {formatTime(item.track.duration_ms)}
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+
+          {hasMore && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={loadMore}
+                className="px-6 py-2 rounded-full bg-[#334155] hover:bg-[#475569] text-white flex items-center gap-2"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Load More'
+                )}
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
