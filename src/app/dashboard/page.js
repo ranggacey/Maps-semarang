@@ -6,6 +6,40 @@ import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/Card";
 import { getNewReleases, getFeaturedPlaylists, getUserTopItems } from "@/lib/spotify/api";
 
+// Mock data for development mode
+const mockNewReleases = {
+  albums: {
+    items: Array(6).fill(null).map((_, i) => ({
+      id: `mock-album-${i}`,
+      name: `Mock Album ${i + 1}`,
+      artists: [{ name: `Artist ${i + 1}` }],
+      images: [{ url: `https://picsum.photos/seed/${i + 100}/300/300` }],
+      type: "album"
+    }))
+  }
+};
+
+const mockFeaturedPlaylists = {
+  playlists: {
+    items: Array(6).fill(null).map((_, i) => ({
+      id: `mock-playlist-${i}`,
+      name: `Mock Playlist ${i + 1}`,
+      description: `This is a mock playlist description ${i + 1}`,
+      images: [{ url: `https://picsum.photos/seed/${i + 200}/300/300` }],
+      type: "playlist"
+    }))
+  }
+};
+
+const mockTopArtists = {
+  items: Array(6).fill(null).map((_, i) => ({
+    id: `mock-artist-${i}`,
+    name: `Mock Artist ${i + 1}`,
+    images: [{ url: `https://picsum.photos/seed/${i + 300}/300/300` }],
+    type: "artist"
+  }))
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -13,12 +47,24 @@ export default function DashboardPage() {
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [topArtists, setTopArtists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!session?.user?.accessToken) return;
+      if (!session?.user) return;
       
       setLoading(true);
+      
+      // Check if we're using the demo account
+      if (session.user.id === "demo-user-id") {
+        setIsDemoMode(true);
+        setNewReleases(mockNewReleases.albums?.items || []);
+        setFeaturedPlaylists(mockFeaturedPlaylists.playlists?.items || []);
+        setTopArtists(mockTopArtists.items || []);
+        setLoading(false);
+        return;
+      }
+      
       try {
         const [newReleasesData, featuredPlaylistsData, topArtistsData] = await Promise.all([
           getNewReleases(session.user.accessToken),
@@ -31,6 +77,10 @@ export default function DashboardPage() {
         setTopArtists(topArtistsData.items || []);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        // Fall back to mock data if API calls fail
+        setNewReleases(mockNewReleases.albums?.items || []);
+        setFeaturedPlaylists(mockFeaturedPlaylists.playlists?.items || []);
+        setTopArtists(mockTopArtists.items || []);
       } finally {
         setLoading(false);
       }
@@ -52,6 +102,11 @@ export default function DashboardPage() {
       {/* Welcome Message */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Good {getTimeOfDay()}</h1>
+        {isDemoMode && (
+          <p className="text-[var(--secondary)] mt-2">
+            You're using the demo account. Some features may be limited.
+          </p>
+        )}
       </div>
 
       {/* Featured Playlists */}

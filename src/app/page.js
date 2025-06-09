@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
@@ -9,12 +9,40 @@ import { motion } from "framer-motion";
 export default function LoginPage() {
   const router = useRouter();
   const { status } = useSession();
+  const [authError, setAuthError] = useState(false);
+  const [isDevelopment, setIsDevelopment] = useState(false);
 
   useEffect(() => {
+    // Check if we're in development mode
+    setIsDevelopment(process.env.NODE_ENV === "development");
+    
+    // Check for error in URL (after redirect back from failed auth)
+    const url = new URL(window.location.href);
+    const error = url.searchParams.get("error");
+    if (error) {
+      setAuthError(true);
+    }
+
     if (status === "authenticated") {
       router.push("/dashboard");
     }
   }, [status, router]);
+
+  const handleSpotifySignIn = () => {
+    signIn("spotify", { callbackUrl: "/dashboard" })
+      .catch(err => {
+        console.error("Authentication error:", err);
+        setAuthError(true);
+      });
+  };
+
+  const handleDemoSignIn = () => {
+    signIn("credentials", { 
+      username: "demo", 
+      password: "demo123",
+      callbackUrl: "/dashboard" 
+    });
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-black">
@@ -36,6 +64,19 @@ export default function LoginPage() {
           </p>
         </motion.div>
 
+        {authError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-red-900/30 border border-red-500 text-white p-4 rounded-md mb-4"
+          >
+            <p className="text-sm">
+              Authentication failed. Spotify OAuth requires a registered application with proper redirect URIs.
+              In development mode, localhost authentication may not work correctly.
+            </p>
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -43,11 +84,20 @@ export default function LoginPage() {
           className="flex flex-col gap-4"
         >
           <Button
-            onClick={() => signIn("spotify", { callbackUrl: "/dashboard" })}
+            onClick={handleSpotifySignIn}
             className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-black font-bold py-3"
           >
             Continue with Spotify
           </Button>
+          
+          {isDevelopment && (
+            <Button
+              onClick={handleDemoSignIn}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3"
+            >
+              Use Demo Account (Dev Mode)
+            </Button>
+          )}
           
           <div className="relative flex items-center justify-center my-4">
             <div className="absolute border-t border-[var(--accent)] w-full"></div>
@@ -80,7 +130,7 @@ export default function LoginPage() {
             </div>
             
             <Button
-              onClick={() => signIn("spotify", { callbackUrl: "/dashboard" })}
+              onClick={handleSpotifySignIn}
               className="w-full bg-white hover:bg-gray-200 text-black font-bold py-3"
             >
               Log In
