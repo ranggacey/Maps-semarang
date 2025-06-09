@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { 
   Home, Search, Library, PlusSquare, Heart, 
   Compass, User, Music, Disc, Radio, Clock, 
-  ListMusic, BarChart2, Globe
+  ListMusic, BarChart2, Globe, Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import styles from "./Sidebar.module.css";
@@ -31,7 +31,7 @@ export function Sidebar() {
     {
       icon: Library,
       label: "Your Library",
-      active: pathname === "/dashboard/collection/playlists",
+      active: pathname.includes("/dashboard/collection"),
       href: "/dashboard/collection/playlists",
     }
   ];
@@ -178,18 +178,17 @@ export function Sidebar() {
       </div>
 
       <div className={styles.section}>
-        <button className={styles.navItem}>
+        <Link href="/dashboard/playlist/create" className={styles.navItem}>
           <PlusSquare className="h-5 w-5" />
           <span>Create Playlist</span>
-        </button>
+        </Link>
       </div>
       
       {session?.user && (
         <div className={styles.userSection}>
-          <div className={styles.userContainer}>
+          <Link href="/dashboard/profile" className={styles.userContainer}>
             <div className={styles.userAvatar}>
               {session.user.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img 
                   src={session.user.image} 
                   alt={session.user.name || "User"} 
@@ -204,7 +203,8 @@ export function Sidebar() {
                 {session.user.name || "User"}
               </p>
             </div>
-          </div>
+            <Settings className="h-4 w-4 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
         </div>
       )}
     </div>

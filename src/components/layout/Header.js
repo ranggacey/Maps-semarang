@@ -92,7 +92,6 @@ export function Header() {
             className={styles.userButton}
           >
             {session?.user?.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img 
                 src={session.user.image} 
                 alt={session.user.name || "User"} 
@@ -119,18 +118,18 @@ export function Header() {
               )}
               
               <div className={styles.menuItems}>
-                <Link href="/dashboard/account" className={styles.menuItem}>
+                <Link href="/dashboard/profile" className={styles.menuItem}>
                   <UserCircle className="h-4 w-4" />
                   <span>Profile</span>
                 </Link>
-                <button className={styles.menuItem}>
+                <Link href="/dashboard/settings" className={styles.menuItem}>
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
-                </button>
-                <button className={styles.menuItem}>
+                </Link>
+                <Link href="/dashboard/help" className={styles.menuItem}>
                   <HelpCircle className="h-4 w-4" />
                   <span>Help</span>
-                </button>
+                </Link>
                 <button 
                   onClick={() => signOut({ callbackUrl: "/" })}
                   className={styles.menuItem}

@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Play } from "lucide-react";
+import Link from "next/link";
 
 export default function DashboardPage({ playTrack }) {
   const router = useRouter();
@@ -34,25 +35,68 @@ export default function DashboardPage({ playTrack }) {
       setIsDemoMode(true);
     }
 
-    // Load data
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // In a real app, these would be actual API calls to Spotify
-        // For now, we'll use mock data
-        setUserPlaylists(mockUserPlaylists);
-        setFeaturedPlaylists(mockFeaturedPlaylists);
-        setNewReleases(mockNewReleases);
-        setTopArtists(mockTopArtists);
-      } catch (error) {
-        console.error("Error loading dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
+    // Fetch user data if session exists
+    if (session?.accessToken) {
+      fetchUserData(session.accessToken);
+    }
   }, [session]);
+
+  const fetchUserData = async (token) => {
+    setLoading(true);
+    try {
+      // Fetch user playlists
+      const playlistsResponse = await fetch('https://api.spotify.com/v1/me/playlists?limit=6', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (playlistsResponse.ok) {
+        const playlistsData = await playlistsResponse.json();
+        setUserPlaylists(playlistsData.items || []);
+      }
+
+      // Fetch featured playlists
+      const featuredResponse = await fetch('https://api.spotify.com/v1/browse/featured-playlists?limit=5', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (featuredResponse.ok) {
+        const featuredData = await featuredResponse.json();
+        setFeaturedPlaylists(featuredData.playlists?.items || []);
+      }
+
+      // Fetch new releases
+      const newReleasesResponse = await fetch('https://api.spotify.com/v1/browse/new-releases?limit=4', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (newReleasesResponse.ok) {
+        const newReleasesData = await newReleasesResponse.json();
+        setNewReleases(newReleasesData.albums?.items || []);
+      }
+
+      // Fetch user's top artists
+      const topArtistsResponse = await fetch('https://api.spotify.com/v1/me/top/artists?limit=6', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (topArtistsResponse.ok) {
+        const topArtistsData = await topArtistsResponse.json();
+        setTopArtists(topArtistsData.items || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePlayTrack = (item) => {
     if (playTrack) {
@@ -64,7 +108,7 @@ export default function DashboardPage({ playTrack }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[70vh]">
+      <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--primary)]"></div>
       </div>
     );
@@ -77,126 +121,161 @@ export default function DashboardPage({ playTrack }) {
       </div>
       
       {/* Recently Played */}
-      <section className="mb-8">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {userPlaylists.slice(0, 6).map((playlist) => (
-            <a 
-              key={playlist.id}
-              href={`/dashboard/playlist/${playlist.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg overflow-hidden flex h-16 group"
-            >
-              <img 
-                src={playlist.images?.[0]?.url} 
-                alt={playlist.name}
-                className={`h-16 w-16 object-cover ${playlist.owner.display_name === 'Spotify' ? 'rounded-l-lg' : ''}`}
-              />
-              <div className="flex-1 flex items-center px-4">
-                <h3 className="font-bold truncate">{playlist.name}</h3>
-              </div>
-              <div className="relative opacity-0 group-hover:opacity-100 transition-opacity flex items-center pr-2">
-                <button className="bg-[var(--primary)] rounded-full p-2 shadow-lg">
-                  <Play className="h-4 w-4 text-black" fill="currentColor" />
-                </button>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
+      {userPlaylists.length > 0 && (
+        <section className="mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {userPlaylists.slice(0, 6).map((playlist) => (
+              <Link 
+                key={playlist.id}
+                href={`/dashboard/playlist/${playlist.id}`}
+                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg overflow-hidden flex h-16 group"
+              >
+                <img 
+                  src={playlist.images?.[0]?.url || '/placeholder-playlist.png'} 
+                  alt={playlist.name}
+                  className="h-16 w-16 object-cover"
+                />
+                <div className="flex-1 flex items-center px-4">
+                  <h3 className="font-bold truncate">{playlist.name}</h3>
+                </div>
+                <div className="relative opacity-0 group-hover:opacity-100 transition-opacity flex items-center pr-2">
+                  <button 
+                    className="bg-[var(--primary)] rounded-full p-2 shadow-lg"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      playTrack(playlist);
+                    }}
+                  >
+                    <Play className="h-4 w-4 text-black" fill="currentColor" />
+                  </button>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       
       {/* Featured Playlists */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Featured Playlists</h2>
-          <a href="/dashboard/browse/featured" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
-            See all
-          </a>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {featuredPlaylists.slice(0, 5).map((playlist) => (
-            <a 
-              key={playlist.id}
-              href={`/dashboard/${playlist.type}/${playlist.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-            >
-              <div className="relative mb-4">
-                <img 
-                  src={playlist.images?.[0]?.url} 
-                  alt={playlist.name}
-                  className="w-full aspect-square object-cover rounded-md shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Play className="h-5 w-5 text-black" fill="currentColor" />
+      {featuredPlaylists.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Featured Playlists</h2>
+            <Link href="/dashboard/browse/featured" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
+              See all
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {featuredPlaylists.map((playlist) => (
+              <Link 
+                key={playlist.id}
+                href={`/dashboard/playlist/${playlist.id}`}
+                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+              >
+                <div className="relative mb-4">
+                  <img 
+                    src={playlist.images?.[0]?.url || '/placeholder-playlist.png'} 
+                    alt={playlist.name}
+                    className="w-full aspect-square object-cover rounded-md shadow-md"
+                  />
+                  <div 
+                    className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      playTrack(playlist);
+                    }}
+                  >
+                    <Play className="h-5 w-5 text-black" fill="currentColor" />
+                  </div>
                 </div>
-              </div>
-              <h3 className="font-semibold truncate">{playlist.name}</h3>
-              <p className="text-sm text-[var(--text-muted)] line-clamp-2">{playlist.description}</p>
-            </a>
-          ))}
-        </div>
-      </section>
+                <h3 className="font-semibold truncate">{playlist.name}</h3>
+                <p className="text-sm text-[var(--text-muted)] line-clamp-2">{playlist.description}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       
       {/* New Releases */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">New Releases</h2>
-          <a href="/dashboard/browse/new-releases" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
-            See all
-          </a>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6">
-          {newReleases.slice(0, 4).map((album) => (
-            <a 
-              key={album.id}
-              href={`/dashboard/${album.album_type}/${album.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-            >
-              <div className="relative mb-4">
-                <img 
-                  src={album.images?.[0]?.url} 
-                  alt={album.name}
-                  className="w-full aspect-square object-cover rounded-md shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Play className="h-5 w-5 text-black" fill="currentColor" />
+      {newReleases.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">New Releases</h2>
+            <Link href="/dashboard/browse/new-releases" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
+              See all
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6">
+            {newReleases.map((album) => (
+              <Link 
+                key={album.id}
+                href={`/dashboard/album/${album.id}`}
+                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+              >
+                <div className="relative mb-4">
+                  <img 
+                    src={album.images?.[0]?.url || '/placeholder-album.png'} 
+                    alt={album.name}
+                    className="w-full aspect-square object-cover rounded-md shadow-md"
+                  />
+                  <div 
+                    className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      playTrack(album);
+                    }}
+                  >
+                    <Play className="h-5 w-5 text-black" fill="currentColor" />
+                  </div>
                 </div>
-              </div>
-              <h3 className="font-semibold truncate">{album.name}</h3>
-              <p className="text-sm text-[var(--text-muted)] truncate">{album.artists.map(artist => artist.name).join(', ')}</p>
-            </a>
-          ))}
-        </div>
-      </section>
+                <h3 className="font-semibold truncate">{album.name}</h3>
+                <p className="text-sm text-[var(--text-muted)] truncate">
+                  {album.artists?.map(artist => artist.name).join(', ')}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       
       {/* Top Artists */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Top Artists</h2>
-          <a href="/dashboard/browse/top-artists" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
-            See all
-          </a>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {topArtists.slice(0, 5).map((artist) => (
-            <a 
-              key={artist.id}
-              href={`/dashboard/artist/${artist.id}`}
-              className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
-            >
-              <div className="relative mb-4">
-                <img 
-                  src={artist.images?.[0]?.url} 
-                  alt={artist.name}
-                  className="w-full aspect-square object-cover rounded-md shadow-md"
-                />
-                <div className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Play className="h-5 w-5 text-black" fill="currentColor" />
+      {topArtists.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Your Top Artists</h2>
+            <Link href="/dashboard/collection/artists" className="text-sm text-[var(--text-muted)] font-bold uppercase hover:underline">
+              See all
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            {topArtists.map((artist) => (
+              <Link 
+                key={artist.id}
+                href={`/dashboard/artist/${artist.id}`}
+                className="bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors rounded-lg p-4 cursor-pointer group"
+              >
+                <div className="relative mb-4">
+                  <img 
+                    src={artist.images?.[0]?.url || '/placeholder-artist.png'} 
+                    alt={artist.name}
+                    className="w-full aspect-square object-cover rounded-full shadow-md"
+                  />
+                  <div 
+                    className="absolute bottom-2 right-2 bg-[var(--primary)] rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      playTrack(artist);
+                    }}
+                  >
+                    <Play className="h-5 w-5 text-black" fill="currentColor" />
+                  </div>
                 </div>
-              </div>
-              <h3 className="font-semibold truncate">{artist.name}</h3>
-            </a>
-          ))}
-        </div>
-      </section>
+                <h3 className="font-semibold truncate text-center">{artist.name}</h3>
+                <p className="text-sm text-[var(--text-muted)] truncate text-center">Artist</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       
       {/* Indonesia Content */}
       <section>
